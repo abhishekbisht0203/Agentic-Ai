@@ -1,0 +1,241 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:17-alpine
+    container_name: airc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-airc_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airc_password}
+      POSTGRES_DB: ${POSTGRES_DB:-airc_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-airc_user} -d ${POSTGRES_DB:-airc_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - airc-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: airc-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - airc-network
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:v1.12.0
+    container_name: airc-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - airc-network
+
+  # MinIO S3 Storage
+  minio:
+    image: minio/minio:RELEASE.2024-12-13T01-54-12Z
+    container_name: airc-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-airc_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-airc_password}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - airc-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: airc-nginx
+    restart: unless-stopped
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - nginx_logs:/var/log/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - airc-network
+
+  # Backend Application
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: airc-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-airc_user}:${POSTGRES_PASSWORD:-airc_password}@postgres:5432/${POSTGRES_DB:-airc_db}
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-airc_admin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-airc_password}
+    volumes:
+      - uploads_data:/app/uploads
+      - ./backend/app:/app/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    networks:
+      - airc-network
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: airc-celery-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-airc_user}:${POSTGRES_PASSWORD:-airc_password}@postgres:5432/${POSTGRES_DB:-airc_db}
+      REDIS_URL: redis://redis:6379/0
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4
+    volumes:
+      - uploads_data:/app/uploads
+      - ./backend/app:/app/app
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - airc-network
+
+  # Celery Beat Scheduler
+  celery-beat:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: airc-celery-beat
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-airc_user}:${POSTGRES_PASSWORD:-airc_password}@postgres:5432/${POSTGRES_DB:-airc_db}
+      REDIS_URL: redis://redis:6379/0
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - airc-network
+
+  # Frontend Application
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    container_name: airc-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    networks:
+      - airc-network
+    depends_on:
+      - backend
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: airc-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./docker/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - airc-network
+    depends_on:
+      - backend
+
+  # Grafana
+  grafana:
+    image: grafana/grafana-enterprise:11.3.0
+    container_name: airc-grafana
+    restart: unless-stopped
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+    ports:
+      - "${GRAFANA_PORT:-3001}:3001"
+    networks:
+      - airc-network
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+  minio_data:
+  uploads_data:
+  nginx_logs:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  airc-network:
+    driver: bridge
