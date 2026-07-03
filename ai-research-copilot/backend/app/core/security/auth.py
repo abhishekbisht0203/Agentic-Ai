@@ -1,0 +1,170 @@
+"""
+Authentication utilities for JWT token management and password handling.
+
+Provides secure token creation, verification, and password hashing.
+"""
+
+from datetime import datetime, timedelta
+from typing import Any
+
+from jose import jwt, JWTError
+from passlib.context import CryptContext
+from pydantic import BaseModel
+
+from app.core.config import settings
+from app.core.exceptions import AuthenticationError
+
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+class TokenPayload(BaseModel):
+    """JWT token payload structure."""
+
+    sub: str  # Subject (user ID)
+    exp: datetime | None = None
+    iat: datetime | None = None
+    refresh: bool = False
+    scopes: list[str] = []
+
+
+def hash_password(password: str) -> str:
+    """
+    Hash a password using bcrypt.
+
+    Args:
+        password: Plain text password to hash.
+
+    Returns:
+        Hashed password string.
+    """
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verify a password against its hash.
+
+    Args:
+        plain_password: Plain text password to verify.
+        hashed_password: Hashed password to check against.
+
+    Returns:
+        True if password matches, False otherwise.
+    """
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def create_access_token(
+    subject: str | Any,
+    expires_delta: timedelta | None = None,
+    scopes: list[str] | None = None,
+) -> str:
+    """
+    Create a JWT access token.
+
+    Args:
+        subject: Token subject (typically user ID).
+        expires_delta: Optional custom expiration time.
+        scopes: Optional list of permission scopes.
+
+    Returns:
+        Encoded JWT token string.
+    """
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(hours=settings.jwt.expiration_hours)
+
+    payload = TokenPayload(
+        sub=str(subject),
+        exp=expire,
+        iat=datetime.utcnow(),
+        refresh=False,
+        scopes=scopes or [],
+    )
+
+    encoded_jwt = jwt.encode(
+        payload.model_dump(),
+        settings.jwt.secret_key,
+        algorithm=settings.jwt.algorithm,
+    )
+    return encoded_jwt
+
+
+def create_refresh_token(
+    subject: str | Any,
+    expires_delta: timedelta | None = None,
+) -> str:
+    """
+    Create a JWT refresh token.
+
+    Args:
+        subject: Token subject (typically user ID).
+        expires_delta: Optional custom expiration time.
+
+    Returns:
+        Encoded JWT refresh token string.
+    """
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(days=settings.jwt.refresh_expiration_days)
+
+    payload = TokenPayload(
+        sub=str(subject),
+        exp=expire,
+        iat=datetime.utcnow(),
+        refresh=True,
+    )
+
+    encoded_jwt = jwt.encode(
+        payload.model_dump(),
+        settings.jwt.secret_key,
+        algorithm=settings.jwt.algorithm,
+    )
+    return encoded_jwt
+
+
+def verify_token(token: str) -> TokenPayload:
+    """
+    Verify and decode a JWT token.
+
+    Args:
+        token: JWT token string to verify.
+
+    Returns:
+        Decoded TokenPayload if valid.
+
+    Raises:
+        AuthenticationError: If token is invalid or expired.
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt.secret_key,
+            algorithms=[settings.jwt.algorithm],
+        )
+        return TokenPayload(**payload)
+    except JWTError as e:
+        raise AuthenticationError(
+            message="Invalid or expired token",
+            details={"error": str(e)},
+        )
+
+
+async def get_current_user(token: str) -> dict[str, Any]:
+    """
+    Get current user from JWT token.
+
+    Args:
+        token: JWT token string.
+
+    Returns:
+        User information dictionary.
+
+    Raises:
+        AuthenticationError: If token is invalid.
+    """
+    payload = verify_token(token)
+    return {"user_id": payload.sub, "scopes": payload.scopes}
