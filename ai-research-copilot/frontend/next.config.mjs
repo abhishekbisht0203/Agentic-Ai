@@ -1,3 +1,10 @@
+import { resolve } from "path";
+import dotenv from "dotenv";
+
+// Load the root .env file (ai-research-copilot/.env)
+const rootEnvPath = resolve(process.cwd(), "..", ".env");
+dotenv.config({ path: rootEnvPath });
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,

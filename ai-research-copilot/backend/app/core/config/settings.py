@@ -10,8 +10,16 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field, field_validator, model_validator
+from dotenv import load_dotenv
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Root .env file location (ai-research-copilot/.env)
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
+ENV_FILE = ROOT_DIR / ".env"
+
+# Load .env into os.environ so nested settings models can read it
+load_dotenv(ENV_FILE)
 
 
 class DatabaseSettings(BaseSettings):
@@ -162,7 +170,7 @@ class MCPSettings(BaseSettings):
 class AppSettings(BaseSettings):
     """Main application configuration settings."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(ENV_FILE), env_file_encoding="utf-8", extra="ignore")
 
     # Application
     name: str = Field(default="AI Research Copilot")
@@ -179,7 +187,7 @@ class AppSettings(BaseSettings):
     # CORS
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000"],
-        alias="CORS_ORIGINS"
+        validation_alias="CORS_ORIGINS"
     )
 
     # Rate Limiting
@@ -201,14 +209,6 @@ class AppSettings(BaseSettings):
     oauth: OAuthSettings = Field(default_factory=OAuthSettings)
     llm: LLMProviderSettings = Field(default_factory=LLMProviderSettings)
     mcp: MCPSettings = Field(default_factory=MCPSettings)
-
-    @model_validator(mode="before")
-    @classmethod
-    def parse_cors_origins(cls, data: Any) -> Any:
-        """Parse CORS origins from comma-separated string."""
-        if "CORS_ORIGINS" in os.environ and isinstance(data.get("cors_origins"), str):
-            data["cors_origins"] = [origin.strip() for origin in data["cors_origins"].split(",")]
-        return data
 
 
 @lru_cache(maxsize=1)

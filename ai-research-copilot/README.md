@@ -1290,6 +1290,14 @@ alembic downgrade -1
 
 ## ⚙️ Environment Variables
 
+> **The project uses only one root `.env` file** located at `ai-research-copilot/.env`. All configuration for both Backend (FastAPI) and Frontend (Next.js) is loaded from this single file. No additional `.env` files are needed.
+
+Copy the example file and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
 ### Backend Variables
 
 | Variable | Description | Required | Default |
@@ -1357,6 +1365,8 @@ alembic downgrade -1
 
 ### Frontend Variables
 
+> These variables are defined in the root `.env` file and loaded by Next.js via `next.config.mjs`.
+
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `NEXT_PUBLIC_API_URL` | Backend API URL | Yes | `http://localhost:8000/api/v1` |
@@ -1384,9 +1394,9 @@ alembic downgrade -1
 git clone https://github.com/your-org/ai-research-copilot.git
 cd ai-research-copilot
 
-# Copy environment files
+# Copy environment file (single root .env for all services)
 cp .env.example .env
-cp ai-research-copilot/frontend/.env.example ai-research-copilot/frontend/.env.local
+# Edit .env with your configuration
 
 # Start all services
 docker-compose up -d
@@ -1408,9 +1418,7 @@ source venv/bin/activate  # Linux/Mac
 uv pip install -e .
 uv pip install -e .[dev]
 
-# Configure environment
-cp ../.env.example .env
-# Edit .env with your configuration
+# The root .env file is already loaded automatically from ai-research-copilot/.env
 
 # Run database migrations
 uv run alembic upgrade head
@@ -1431,9 +1439,8 @@ cd ai-research-copilot/frontend
 # Install dependencies
 npm install
 
-# Configure environment
-cp .env.example .env.local
-# Edit .env.local with your configuration
+# The root .env file is loaded automatically via next.config.mjs
+# NEXT_PUBLIC_* variables from ai-research-copilot/.env are available at build time
 
 # Start development server
 npm run dev

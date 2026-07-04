@@ -6,6 +6,12 @@ WORKDIR /app
 # Install pnpm for faster installs
 RUN npm i -g pnpm@9.15.0
 
+# Accept NEXT_PUBLIC_* build args from docker-compose
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+ARG NEXT_PUBLIC_APP_NAME=AI Research Copilot
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
+
 # Copy package files
 COPY frontend/package.json frontend/pnpm-lock.yaml* ./
 
@@ -14,6 +20,9 @@ RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY frontend/ .
+
+# Copy root .env for runtime variables
+COPY .env .env
 
 # Build application
 RUN pnpm run build

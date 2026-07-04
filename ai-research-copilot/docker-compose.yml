@@ -181,12 +181,15 @@ services:
     build:
       context: .
       dockerfile: docker/frontend/Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+        - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-AI Research Copilot}
     container_name: airc-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    env_file:
+      - .env
     networks:
       - airc-network
     depends_on:
