@@ -42,7 +42,7 @@ class DocumentService:
     def _build_storage() -> S3Storage | LocalStorage:
         """Select storage backend from application settings."""
         backend = getattr(settings, "storage_backend", "s3")
-        if backend == "local":
+        if backend == "local" or S3Storage is None:
             return LocalStorage(
                 base_path=getattr(settings, "local_storage_path", "./uploads")
             )

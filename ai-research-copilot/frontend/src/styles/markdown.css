@@ -1,0 +1,93 @@
+.prose pre {
+  @apply rounded-lg bg-muted p-4 overflow-x-auto;
+}
+
+.prose code {
+  @apply rounded bg-muted px-1.5 py-0.5 text-sm font-mono;
+}
+
+.prose pre code {
+  @apply bg-transparent p-0 rounded-none;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-primary/30 pl-4 italic text-muted-foreground;
+}
+
+.prose a {
+  @apply text-primary underline underline-offset-4 hover:text-primary/80;
+}
+
+.prose ul {
+  @apply list-disc pl-6;
+}
+
+.prose ol {
+  @apply list-decimal pl-6;
+}
+
+.prose li {
+  @apply my-1;
+}
+
+.prose table {
+  @apply w-full border-collapse;
+}
+
+.prose th {
+  @apply border bg-muted px-4 py-2 text-left font-medium;
+}
+
+.prose td {
+  @apply border px-4 py-2;
+}
+
+.prose h1 {
+  @apply text-2xl font-bold mt-8 mb-4;
+}
+
+.prose h2 {
+  @apply text-xl font-semibold mt-6 mb-3;
+}
+
+.prose h3 {
+  @apply text-lg font-medium mt-4 mb-2;
+}
+
+.prose p {
+  @apply my-2;
+}
+
+.prose hr {
+  @apply my-8 border-border;
+}
+
+.prose img {
+  @apply rounded-lg my-4;
+}
+
+.prose strong {
+  @apply font-semibold;
+}
+
+.prose em {
+  @apply italic;
+}
+
+.dark .prose {
+  --tw-prose-body: hsl(var(--foreground));
+  --tw-prose-headings: hsl(var(--foreground));
+  --tw-prose-links: hsl(var(--primary));
+  --tw-prose-bold: hsl(var(--foreground));
+  --tw-prose-counters: hsl(var(--muted-foreground));
+  --tw-prose-bullets: hsl(var(--muted-foreground));
+  --tw-prose-hr: hsl(var(--border));
+  --tw-prose-quotes: hsl(var(--muted-foreground));
+  --tw-prose-quote-borders: hsl(var(--primary));
+  --tw-prose-captions: hsl(var(--muted-foreground));
+  --tw-prose-code: hsl(var(--foreground));
+  --tw-prose-pre-code: hsl(var(--foreground));
+  --tw-prose-pre-bg: hsl(var(--muted));
+  --tw-prose-th-borders: hsl(var(--border));
+  --tw-prose-td-borders: hsl(var(--border));
+}
