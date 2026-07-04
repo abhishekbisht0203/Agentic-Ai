@@ -60,6 +60,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Check rate limit
         redis_client = await self._get_redis()
+        current = 0
         try:
             current = await redis_client.incr(key)
             if current == 1:
