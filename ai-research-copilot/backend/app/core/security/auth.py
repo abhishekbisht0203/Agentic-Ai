@@ -4,7 +4,7 @@ Authentication utilities for JWT token management and password handling.
 Provides secure token creation, verification, and password hashing.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import bcrypt
@@ -69,14 +69,14 @@ def create_access_token(
         Encoded JWT token string.
     """
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(hours=settings.jwt.expiration_hours)
+        expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt.expiration_hours)
 
     payload = TokenPayload(
         sub=str(subject),
         exp=expire,
-        iat=datetime.utcnow(),
+        iat=datetime.now(timezone.utc),
         refresh=False,
         scopes=scopes or [],
     )
@@ -104,14 +104,14 @@ def create_refresh_token(
         Encoded JWT refresh token string.
     """
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(days=settings.jwt.refresh_expiration_days)
+        expire = datetime.now(timezone.utc) + timedelta(days=settings.jwt.refresh_expiration_days)
 
     payload = TokenPayload(
         sub=str(subject),
         exp=expire,
-        iat=datetime.utcnow(),
+        iat=datetime.now(timezone.utc),
         refresh=True,
     )
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useChatStore } from "@/store/chat-store";
 import { chatApi } from "@/services/api/chat";
@@ -8,7 +8,23 @@ import type { ChatRequest } from "@/types";
 
 export function useChat() {
   const queryClient = useQueryClient();
-  const store = useChatStore();
+
+  const conversations = useChatStore((s) => s.conversations);
+  const currentConversation = useChatStore((s) => s.currentConversation);
+  const messages = useChatStore((s) => s.messages);
+  const isLoading = useChatStore((s) => s.isLoading);
+  const isStreaming = useChatStore((s) => s.isStreaming);
+  const error = useChatStore((s) => s.error);
+  const searchQuery = useChatStore((s) => s.searchQuery);
+
+  const setConversations = useChatStore((s) => s.setConversations);
+  const setCurrentConversation = useChatStore((s) => s.setCurrentConversation);
+  const addMessage = useChatStore((s) => s.addMessage);
+  const setIsLoading = useChatStore((s) => s.setIsLoading);
+  const setIsStreaming = useChatStore((s) => s.setIsStreaming);
+  const setError = useChatStore((s) => s.setError);
+  const setSearchQuery = useChatStore((s) => s.setSearchQuery);
+  const clearChat = useChatStore((s) => s.clearChat);
 
   const { data: conversationsData, isLoading: isLoadingConversations } = useQuery({
     queryKey: ["conversations"],
@@ -20,7 +36,7 @@ export function useChat() {
       chatApi.createConversation(data),
     onSuccess: (newConv) => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      store.setCurrentConversation({ ...newConv, messages: [] });
+      setCurrentConversation({ ...newConv, messages: [] });
       return newConv;
     },
   });
@@ -28,12 +44,13 @@ export function useChat() {
   const sendMessage = useMutation({
     mutationFn: (data: ChatRequest) => chatApi.sendMessage(data),
     onSuccess: (response) => {
-      store.setIsStreaming(false);
-      store.addMessage(response.message);
+      setIsStreaming(false);
+      addMessage(response.message);
       if (response.citations?.length) {
-        const lastMsg = store.messages[store.messages.length - 1];
+        const currentMessages = useChatStore.getState().messages;
+        const lastMsg = currentMessages[currentMessages.length - 1];
         if (lastMsg) {
-          store.addMessage({
+          addMessage({
             ...lastMsg,
             metadata: { citations: response.citations },
           });
@@ -41,8 +58,8 @@ export function useChat() {
       }
     },
     onError: (error: Error) => {
-      store.setError(error.message);
-      store.setIsStreaming(false);
+      setError(error.message);
+      setIsStreaming(false);
     },
   });
 
@@ -50,43 +67,43 @@ export function useChat() {
     mutationFn: (convId: string) => chatApi.deleteConversation(convId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      store.clearChat();
+      clearChat();
     },
   });
 
   const getConversation = useCallback(
     async (convId: string) => {
-      store.setIsLoading(true);
+      setIsLoading(true);
       try {
         const conv = await chatApi.getConversation(convId);
-        store.setCurrentConversation(conv);
+        setCurrentConversation(conv);
       } catch (error) {
-        store.setError(error instanceof Error ? error.message : "Failed to load conversation");
+        setError(error instanceof Error ? error.message : "Failed to load conversation");
       } finally {
-        store.setIsLoading(false);
+        setIsLoading(false);
       }
     },
-    [store]
+    [setIsLoading, setCurrentConversation, setError]
   );
 
   const startNewChat = useCallback(() => {
-    store.clearChat();
-  }, [store]);
+    clearChat();
+  }, [clearChat]);
 
   return {
     conversations: conversationsData?.items ?? [],
-    currentConversation: store.currentConversation,
-    messages: store.messages,
-    isLoading: store.isLoading || isLoadingConversations,
-    isStreaming: store.isStreaming,
-    error: store.error,
-    searchQuery: store.searchQuery,
-    setSearchQuery: store.setSearchQuery,
+    currentConversation,
+    messages,
+    isLoading: isLoading || isLoadingConversations,
+    isStreaming,
+    error,
+    searchQuery,
+    setSearchQuery,
     sendMessage,
     createConversation,
     deleteConversation,
     getConversation,
     startNewChat,
-    setIsStreaming: store.setIsStreaming,
+    setIsStreaming,
   };
 }

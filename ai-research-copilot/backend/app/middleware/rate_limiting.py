@@ -24,6 +24,15 @@ class RateLimitMiddleware:
         self.app = app
         self._redis_client: redis.Redis | None = None
 
+    async def close(self) -> None:
+        """Close Redis connection gracefully."""
+        if self._redis_client is not None:
+            try:
+                await self._redis_client.close()
+            except Exception:
+                pass
+            self._redis_client = None
+
     async def _get_redis(self) -> redis.Redis | None:
         """Get or create Redis client. Returns None if connection fails."""
         if self._redis_client is None:

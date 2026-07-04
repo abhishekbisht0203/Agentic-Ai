@@ -20,6 +20,7 @@ from app.core.exceptions import AIRCError
 from app.database.session import close_db, init_db
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.rate_limiting import RateLimitMiddleware
+from app.middleware.security import SecurityHeadersMiddleware
 from app.routers import api_router
 
 logging.basicConfig(
@@ -58,6 +59,7 @@ async def lifespan(app: FastAPI) -> Any:
     logger.info("Shutting down AI Research Copilot application...")
 
     try:
+        from app.database.session import close_db
         await close_db()
     except Exception:
         pass
@@ -73,37 +75,39 @@ async def lifespan(app: FastAPI) -> Any:
 
 def create_application() -> FastAPI:
     """Create and configure the FastAPI application."""
+    is_production = settings.env == "production"
+
     app = FastAPI(
         title=settings.name,
         description="Enterprise Agentic AI Research Copilot",
         version=settings.version,
-        debug=settings.debug,
         lifespan=lifespan,
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/openapi.json",
+        docs_url=None if is_production else "/docs",
+        redoc_url=None if is_production else "/redoc",
+        openapi_url=None if is_production else "/openapi.json",
     )
 
-    if not settings.debug:
+    if is_production:
         app.add_middleware(
             TrustedHostMiddleware,
-            allowed_hosts=["*"],
+            allowed_hosts=["*.airesearchcopilot.com", "airesearchcopilot.com"],
         )
 
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
+        expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining"],
     )
 
     app.include_router(api_router, prefix="/api/v1")
 
-    register_exception_handlers(app)
+    register_exception_handlers(app, is_production)
 
     @app.get("/health")
     async def health_check() -> dict[str, str]:
@@ -167,7 +171,7 @@ def create_application() -> FastAPI:
     return app
 
 
-def register_exception_handlers(app: FastAPI) -> None:
+def register_exception_handlers(app: FastAPI, is_production: bool = False) -> None:
     """Register custom exception handlers."""
 
     @app.exception_handler(AIRCError)
@@ -189,12 +193,14 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         """Handle unexpected errors."""
         logger.exception("Unexpected error occurred")
+        detail = str(exc) if not is_production else None
         return JSONResponse(
             status_code=500,
             content={
                 "error": {
                     "code": "INTERNAL_ERROR",
                     "message": "An unexpected error occurred",
+                    **({"details": detail} if detail else {}),
                 }
             },
         )

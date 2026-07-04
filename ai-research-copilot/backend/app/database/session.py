@@ -47,10 +47,16 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Initialize database tables."""
-    async with engine.begin() as conn:
-        from app.database.base import Base
-        await conn.run_sync(Base.metadata.create_all)
+    """Initialize database tables.
+
+    In development, creates all tables directly.
+    In production, expects Alembic migrations to have been run.
+    """
+    from app.core.config import settings
+    if settings.env != "production":
+        async with engine.begin() as conn:
+            from app.database.base import Base
+            await conn.run_sync(Base.metadata.create_all)
 
 
 async def close_db() -> None:

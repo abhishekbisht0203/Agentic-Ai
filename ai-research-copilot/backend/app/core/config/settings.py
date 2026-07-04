@@ -175,9 +175,9 @@ class AppSettings(BaseSettings):
     # Application
     name: str = Field(default="AI Research Copilot")
     version: str = Field(default="1.0.0")
-    env: str = Field(default="development", alias="APP_ENV")
-    debug: bool = Field(default=True, alias="APP_DEBUG")
-    log_level: str = Field(default="debug", alias="LOG_LEVEL")
+    env: str = Field(default="production", alias="APP_ENV")
+    debug: bool = Field(default=False, alias="APP_DEBUG")
+    log_level: str = Field(default="info", alias="LOG_LEVEL")
 
     # Server
     host: str = Field(default="0.0.0.0", alias="HOST")

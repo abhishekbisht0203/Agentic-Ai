@@ -1,0 +1,41 @@
+services:
+  # PostgreSQL Database
+  - type: postgresql
+    name: airc-database
+    plan: free
+    databaseName: airc_db
+    user: airc_user
+
+  # Backend API
+  - type: web
+    name: airc-backend
+    plan: free
+    runtime: docker
+    dockerfilePath: ./docker/backend/Dockerfile.render
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        fromDatabase:
+          name: airc-database
+          property: connectionString
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: '["https://abryx-ai.vercel.app"]'
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 8000
+      - key: WORKERS
+        value: 2
+      - key: ENCRYPTION_KEY
+        generateValue: true
+    healthCheckPath: /health
+    autoDeploy: true

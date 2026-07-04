@@ -6,37 +6,46 @@ import { useCallback } from "react";
 
 export function useAuth() {
   const router = useRouter();
-  const store = useAuthStore();
+
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const error = useAuthStore((s) => s.error);
+
+  const loginAction = useAuthStore((s) => s.login);
+  const registerAction = useAuthStore((s) => s.register);
+  const logoutAction = useAuthStore((s) => s.logout);
+  const clearError = useAuthStore((s) => s.clearError);
 
   const login = useCallback(
     async (email: string, password: string) => {
-      await store.login({ email, password });
+      await loginAction({ email, password });
       router.push("/dashboard");
     },
-    [store, router]
+    [loginAction, router]
   );
 
   const register = useCallback(
     async (data: { email: string; username: string; password: string; full_name?: string }) => {
-      await store.register(data);
+      await registerAction(data);
       router.push("/dashboard");
     },
-    [store, router]
+    [registerAction, router]
   );
 
   const logout = useCallback(async () => {
-    await store.logout();
+    await logoutAction();
     router.push("/login");
-  }, [store, router]);
+  }, [logoutAction, router]);
 
   return {
-    user: store.user,
-    isAuthenticated: store.isAuthenticated,
-    isLoading: store.isLoading,
-    error: store.error,
+    user,
+    isAuthenticated,
+    isLoading,
+    error,
     login,
     register,
     logout,
-    clearError: store.clearError,
+    clearError,
   };
 }
