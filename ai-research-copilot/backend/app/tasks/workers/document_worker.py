@@ -36,7 +36,7 @@ def _extract_text_from_pdf(file_bytes: bytes) -> str:
         Extracted text as a single string.
     """
     try:
-        from PyPDF2 import PdfReader
+        from pypdf import PdfReader
 
         reader = PdfReader(io.BytesIO(file_bytes))
         pages = []
