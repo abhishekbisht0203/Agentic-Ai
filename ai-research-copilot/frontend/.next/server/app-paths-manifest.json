@@ -1,18 +1,8 @@
 {
-  "/(auth)/forgot-password/page": "app/(auth)/forgot-password/page.js",
+  "/page": "app/page.js",
+  "/(auth)/register/page": "app/(auth)/register/page.js",
   "/_not-found/page": "app/_not-found/page.js",
   "/(auth)/login/page": "app/(auth)/login/page.js",
-  "/(auth)/register/page": "app/(auth)/register/page.js",
-  "/page": "app/page.js",
-  "/(dashboard)/agents/page": "app/(dashboard)/agents/page.js",
-  "/(dashboard)/chat/page": "app/(dashboard)/chat/page.js",
-  "/(dashboard)/reports/page": "app/(dashboard)/reports/page.js",
-  "/(dashboard)/admin/page": "app/(dashboard)/admin/page.js",
-  "/(dashboard)/settings/page": "app/(dashboard)/settings/page.js",
-  "/(dashboard)/documents/page": "app/(dashboard)/documents/page.js",
   "/(dashboard)/knowledge/page": "app/(dashboard)/knowledge/page.js",
-  "/(dashboard)/workflows/page": "app/(dashboard)/workflows/page.js",
-  "/(dashboard)/profile/page": "app/(dashboard)/profile/page.js",
-  "/(dashboard)/analytics/page": "app/(dashboard)/analytics/page.js",
-  "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js"
+  "/(dashboard)/chat/page": "app/(dashboard)/chat/page.js"
 }

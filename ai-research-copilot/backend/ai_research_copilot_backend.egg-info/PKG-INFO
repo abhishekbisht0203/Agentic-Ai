@@ -1,0 +1,77 @@
+Metadata-Version: 2.4
+Name: ai-research-copilot-backend
+Version: 1.0.0
+Summary: Enterprise Agentic AI Research Copilot Backend
+Author-email: AI Research Copilot Team <team@airesearchcopilot.com>
+License: MIT
+Keywords: ai,research,copilot,agentic,rag,mcp
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Framework :: FastAPI
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.115.0
+Requires-Dist: uvicorn[standard]>=0.32.0
+Requires-Dist: pydantic>=2.10.0
+Requires-Dist: sqlalchemy[asyncio]>=2.0.36
+Requires-Dist: asyncpg>=0.30.0
+Requires-Dist: alembic>=1.14.0
+Requires-Dist: redis>=5.2.0
+Requires-Dist: celery[redis]>=5.4.0
+Requires-Dist: python-jose[cryptography]>=3.3.0
+Requires-Dist: passlib[bcrypt]>=1.7.4
+Requires-Dist: python-multipart>=0.0.18
+Requires-Dist: langchain>=0.3.15
+Requires-Dist: langgraph>=0.2.53
+Requires-Dist: llama-index>=0.12.10
+Requires-Dist: openai>=1.59.0
+Requires-Dist: anthropic>=0.42.0
+Requires-Dist: google-generativeai>=0.8.0
+Requires-Dist: sentence-transformers>=3.3.0
+Requires-Dist: transformers>=4.47.0
+Requires-Dist: torch>=2.5.0
+Requires-Dist: qdrant-client>=1.12.0
+Requires-Dist: mcp>=1.2.0
+Requires-Dist: httpx>=0.27.0
+Requires-Dist: aiohttp>=3.11.0
+Requires-Dist: requests>=2.32.0
+Requires-Dist: pypdf>=4.0.0
+Requires-Dist: python-docx>=1.0.0
+Requires-Dist: python-pptx>=0.6.21
+Requires-Dist: unstructured[all-docs]>=0.16.0
+Requires-Dist: pillow>=11.0.0
+Requires-Dist: pytesseract>=0.3.13
+Requires-Dist: markdown>=3.7.0
+Requires-Dist: beautifulsoup4>=4.12.0
+Requires-Dist: youtube-transcript-api>=0.6.21
+Requires-Dist: pandas>=2.2.0
+Requires-Dist: numpy>=2.2.0
+Requires-Dist: openpyxl>=3.1.0
+Requires-Dist: scipy>=1.15.0
+Requires-Dist: prometheus-client>=0.21.0
+Requires-Dist: opentelemetry-api>=1.28.0
+Requires-Dist: opentelemetry-sdk>=1.28.0
+Requires-Dist: opentelemetry-exporter-otlp>=1.28.0
+Requires-Dist: opentelemetry-instrumentation-fastapi>=0.48b0
+Requires-Dist: structlog>=24.5.0
+Requires-Dist: pytest>=8.3.0
+Requires-Dist: pytest-asyncio>=0.24.0
+Requires-Dist: pytest-cov>=5.0.0
+Requires-Dist: factory-boy>=3.3.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: pydantic-settings>=2.6.0
+Requires-Dist: psutil>=6.1.0
+Requires-Dist: orjson>=3.10.0
+Requires-Dist: python-magic>=0.4.27
+Requires-Dist: supabase>=2.0.0
+Provides-Extra: dev
+Requires-Dist: black; extra == "dev"
+Requires-Dist: isort; extra == "dev"
+Requires-Dist: mypy; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: pre-commit; extra == "dev"
+Requires-Dist: ipython; extra == "dev"
+Requires-Dist: jupyter; extra == "dev"

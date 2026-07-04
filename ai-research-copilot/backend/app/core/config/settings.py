@@ -27,10 +27,16 @@ class DatabaseSettings(BaseSettings):
     pool_size: int = Field(default=20)
     max_overflow: int = Field(default=30)
     pool_timeout: int = Field(default=30)
+    database_url: str = Field(default="", alias="DATABASE_URL")
 
     @property
-    def database_url(self) -> str:
-        """Construct the database connection URL."""
+    def async_database_url(self) -> str:
+        """Construct the async database connection URL."""
+        if self.database_url:
+            url = self.database_url
+            if not url.startswith("postgresql+asyncpg://"):
+                url = url.replace("postgresql://", "postgresql+asyncpg://")
+            return url
         return f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.db}"
 
 
