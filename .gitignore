@@ -1,1 +1,9 @@
 /.claude
+.next/
+node_modules/
+
+# Environment files - only .env.example should be committed
+.env
+.env.local
+.env.*.local
+!/.env.example
