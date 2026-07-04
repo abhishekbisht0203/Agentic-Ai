@@ -7,7 +7,7 @@ Extracts text from PDF files page-by-page using PyPDF2.
 import logging
 from io import BytesIO
 
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 
 from app.rag.loaders.base import BaseDocumentLoader
 
