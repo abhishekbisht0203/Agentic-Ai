@@ -7,15 +7,12 @@ Provides secure token creation, verification, and password hashing.
 from datetime import datetime, timedelta
 from typing import Any
 
+import bcrypt
 from jose import jwt, JWTError
-from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.exceptions import AuthenticationError
-
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class TokenPayload(BaseModel):
@@ -38,7 +35,7 @@ def hash_password(password: str) -> str:
     Returns:
         Hashed password string.
     """
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -52,7 +49,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True if password matches, False otherwise.
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def create_access_token(

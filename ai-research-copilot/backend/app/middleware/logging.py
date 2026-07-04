@@ -7,49 +7,53 @@ Logs all incoming requests with structured data.
 from typing import Any
 
 import structlog
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = structlog.get_logger()
 
 
-class LoggingMiddleware(BaseHTTPMiddleware):
+class LoggingMiddleware:
     """
-    Middleware for logging HTTP requests and responses.
+    Pure ASGI middleware for logging HTTP requests and responses.
 
     Provides structured logging with request ID tracking.
     """
 
-    async def dispatch(self, request: Request, call_next: Any) -> Response:
-        """
-        Process request and log it.
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
 
-        Args:
-            request: Incoming HTTP request.
-            call_next: Next middleware/handler in chain.
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-        Returns:
-            HTTP response.
-        """
-        # Log incoming request
+        method = scope["method"]
+        path = scope["path"]
+        query = scope.get("query_string", b"").decode()
+        client = scope.get("client")
+        client_host = client[0] if client else None
+
         logger.info(
             "Incoming request",
-            method=request.method,
-            path=request.url.path,
-            query=request.url.query,
-            client=request.client.host if request.client else None,
+            method=method,
+            path=path,
+            query=query,
+            client=client_host,
         )
 
-        # Call next handler
-        response = await call_next(request)
+        status_code = 500
 
-        # Log response
+        async def send_wrapper(message: dict[str, Any]) -> None:
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message.get("status", 500)
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
         logger.info(
             "Outgoing response",
-            method=request.method,
-            path=request.url.path,
-            status_code=response.status_code,
+            method=method,
+            path=path,
+            status_code=status_code,
         )
-
-        return response
