@@ -225,7 +225,9 @@ async def send_chat(
     agent_service: AgentService = Depends(_get_agent_service),
 ) -> ChatResponse:
     """Send a user message, invoke the agent, and return the response."""
-    from app.schemas.agent import AgentExecuteRequest
+    from app.llms.factory import LLMFactory
+    from app.llms.chains.conversation import ConversationChain, ChainConfig
+    from app.llms.prompts.templates import get_prompt
 
     conv_id = data.conversation_id
     if conv_id is None:
@@ -246,17 +248,26 @@ async def send_chat(
         data=MessageCreate(content=data.message, role="user"),
     )
 
-    agent_request = AgentExecuteRequest(
-        agent_type=data.agent_type or "research",
-        input_data={"message": data.message},
-        conversation_id=conv_id,
+    agent_type = data.agent_type or "research"
+    system_prompt = get_prompt(agent_type)
+
+    factory = LLMFactory(default_provider="openai")
+    provider = factory.get_provider("openai")
+
+    chain_config = ChainConfig(
+        system_prompt=system_prompt,
+        temperature=0.7,
+        max_tokens=4096,
         model=data.model,
     )
-    agent_response = await agent_service.execute_agent(
-        user_id=current_user.id, data=agent_request
+    chain = ConversationChain(llm_provider=provider, config=chain_config)
+
+    response = await chain.predict(
+        user_input=data.message,
+        conversation_id=conv_id,
     )
 
-    assistant_content = agent_response.output_data.get("response", "") if agent_response.output_data else ""
+    assistant_content = response.content
     assistant_message = await chat_service.add_message(
         conv_id=conv_id,
         user_id=current_user.id,
@@ -266,5 +277,5 @@ async def send_chat(
     return ChatResponse(
         conversation_id=conv_id,
         message=assistant_message,
-        citations=agent_response.output_data.get("citations", []) if agent_response.output_data else [],
+        citations=[],
     )

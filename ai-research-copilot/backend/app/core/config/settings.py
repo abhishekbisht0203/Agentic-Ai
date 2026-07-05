@@ -162,20 +162,23 @@ class LLMProviderSettings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    # OpenAI
+    # OpenAI / OpenRouter
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
-    openai_default_model: str = Field(default="gpt-4o", alias="OPENAI_DEFAULT_MODEL")
+    openai_base_url: str = Field(default="https://openrouter.ai/api/v1", alias="OPENAI_BASE_URL")
+    openai_default_model: str = Field(default="openai/gpt-oss-120b:free", alias="OPENAI_DEFAULT_MODEL")
     openai_embedding_model: str = Field(default="text-embedding-3-large", alias="OPENAI_EMBEDDING_MODEL")
     openai_max_tokens: int = Field(default=4096, alias="OPENAI_MAX_TOKENS")
     openai_temperature: float = Field(default=0.7, alias="OPENAI_TEMPERATURE")
 
-    # Anthropic
+    # Anthropic (via OpenRouter)
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
-    anthropic_default_model: str = Field(default="claude-3-5-sonnet-20241022", alias="ANTHROPIC_DEFAULT_MODEL")
+    anthropic_base_url: str = Field(default="https://openrouter.ai/api/v1", alias="ANTHROPIC_BASE_URL")
+    anthropic_default_model: str = Field(default="openai/gpt-oss-120b:free", alias="ANTHROPIC_DEFAULT_MODEL")
 
-    # Google Gemini
+    # Google Gemini (via OpenRouter)
     google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
-    google_default_model: str = Field(default="gemini-2.0-flash-exp", alias="GOOGLE_DEFAULT_MODEL")
+    google_base_url: str = Field(default="https://openrouter.ai/api/v1", alias="GOOGLE_BASE_URL")
+    google_default_model: str = Field(default="poolside/laguna-m.1:free", alias="GOOGLE_DEFAULT_MODEL")
 
     # Ollama (local)
     ollama_base_url: str = Field(default="http://localhost:11434")
@@ -214,6 +217,17 @@ class AppSettings(BaseSettings):
         default_factory=lambda: ["http://localhost:3000"],
         validation_alias="CORS_ORIGINS"
     )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     # Rate Limiting
     rate_limit_requests: int = Field(default=100, alias="RATE_LIMIT_REQUESTS")

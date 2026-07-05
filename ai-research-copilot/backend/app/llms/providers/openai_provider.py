@@ -52,7 +52,8 @@ class OpenAIProvider(BaseLLMProvider):
                 message="OpenAI API key is not configured. Set OPENAI_API_KEY environment variable.",
                 details={"provider": "openai"},
             )
-        self._client = AsyncOpenAI(api_key=resolved_key)
+        base_url = settings.llm.openai_base_url
+        self._client = AsyncOpenAI(api_key=resolved_key, base_url=base_url)
         self._default_model = settings.llm.openai_default_model
         logger.info("OpenAI provider initialised with model %s", self._default_model)
 

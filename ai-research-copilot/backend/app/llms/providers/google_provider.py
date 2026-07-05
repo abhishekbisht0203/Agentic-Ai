@@ -1,14 +1,16 @@
 """
-Google Gemini LLM provider implementation.
+Google Gemini LLM provider implementation (via OpenRouter).
 
+Uses OpenRouter's OpenAI-compatible endpoint to access Gemini models.
 Supports Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash, and other
-Google AI Studio / Vertex AI models via the google-generativeai SDK.
+Google AI models via the OpenAI async client.
 """
 
 import logging
 from typing import Any, AsyncGenerator
 
-import google.generativeai as genai
+from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 
 from app.core.config import settings
 from app.core.exceptions import LLMError
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class GoogleProvider(BaseLLMProvider):
-    """Provider for Google Gemini language models."""
+    """Provider for Google Gemini language models via OpenRouter."""
 
     provider_name: str = "google"
 
@@ -28,14 +30,15 @@ class GoogleProvider(BaseLLMProvider):
         "gemini-1.5-flash": {"input": 0.075, "output": 0.30},
         "gemini-1.5-pro-002": {"input": 1.25, "output": 5.00},
         "gemini-1.5-flash-002": {"input": 0.075, "output": 0.30},
+        "poolside/laguna-m.1:free": {"input": 0.0, "output": 0.0},
     }
 
     def __init__(self, api_key: str | None = None) -> None:
         """
-        Initialize the Google Gemini provider.
+        Initialize the Google Gemini provider via OpenRouter.
 
         Args:
-            api_key: Google AI API key. Falls back to settings if not provided.
+            api_key: OpenRouter API key. Falls back to settings if not provided.
         """
         resolved_key = api_key or settings.llm.google_api_key
         if not resolved_key:
@@ -43,41 +46,14 @@ class GoogleProvider(BaseLLMProvider):
                 message="Google API key is not configured. Set GOOGLE_API_KEY environment variable.",
                 details={"provider": "google"},
             )
-        genai.configure(api_key=resolved_key)
+        base_url = settings.llm.google_base_url
+        self._client = AsyncOpenAI(api_key=resolved_key, base_url=base_url)
         self._default_model = settings.llm.google_default_model
-        logger.info("Google Gemini provider initialised with model %s", self._default_model)
+        logger.info("Google Gemini provider initialised with model %s via OpenRouter", self._default_model)
 
     def count_tokens(self, text: str) -> int:
         """Estimate token count. Gemini uses roughly 4 chars per token."""
         return len(text) // 4
-
-    def _convert_messages(
-        self, messages: list[dict[str, str]]
-    ) -> tuple[str, list[dict[str, Any]]]:
-        """
-        Convert generic message format to Gemini's format.
-
-        Extracts the system instruction (if present) and converts the
-        remaining messages into Gemini content dicts.
-
-        Returns:
-            Tuple of (system_instruction, contents).
-        """
-        system_instruction = ""
-        contents: list[dict[str, Any]] = []
-
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-
-            if role == "system":
-                system_instruction = content
-            elif role == "assistant":
-                contents.append({"role": "model", "parts": [content]})
-            else:
-                contents.append({"role": "user", "parts": [content]})
-
-        return system_instruction, contents
 
     async def generate(
         self,
@@ -88,7 +64,7 @@ class GoogleProvider(BaseLLMProvider):
         **kwargs: Any,
     ) -> LLMResponse:
         """
-        Generate a response via the Google Gemini API.
+        Generate a response via OpenRouter's OpenAI-compatible endpoint.
 
         Args:
             messages: Conversation messages.
@@ -107,22 +83,17 @@ class GoogleProvider(BaseLLMProvider):
         resolved_temp = temperature if temperature is not None else 0.7
         resolved_max = max_tokens or 4096
 
-        system_instruction, contents = self._convert_messages(messages)
+        typed_messages: list[ChatCompletionMessageParam] = [
+            {"role": m["role"], "content": m["content"]} for m in messages
+        ]
 
         try:
-            genai_model = genai.GenerativeModel(
-                model_name=resolved_model,
-                system_instruction=system_instruction or None,
-            )
-
-            generation_config = genai.types.GenerationConfig(
+            response = await self._client.chat.completions.create(
+                model=resolved_model,
+                messages=typed_messages,
                 temperature=resolved_temp,
-                max_output_tokens=resolved_max,
-            )
-
-            response = await genai_model.generate_content_async(
-                contents=contents,
-                generation_config=generation_config,
+                max_tokens=resolved_max,
+                **kwargs,
             )
         except Exception as exc:
             logger.error("Google Gemini generation failed: %s", exc, exc_info=True)
@@ -131,27 +102,21 @@ class GoogleProvider(BaseLLMProvider):
                 details={"provider": "google", "model": resolved_model},
             ) from exc
 
-        content = response.text or ""
-        prompt_tokens = 0
-        completion_tokens = 0
-        if response.usage_metadata:
-            prompt_tokens = getattr(response.usage_metadata, "prompt_token_count", 0) or 0
-            completion_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
-
-        finish_reason = "stop"
-        if response.candidates and response.candidates[0].finish_reason:
-            finish_reason = str(response.candidates[0].finish_reason)
+        choice = response.choices[0]
+        usage = response.usage
+        prompt_tokens = usage.prompt_tokens if usage else 0
+        completion_tokens = usage.completion_tokens if usage else 0
 
         return LLMResponse(
-            content=content,
-            model=resolved_model,
+            content=choice.message.content or "",
+            model=response.model,
             token_usage={
                 "prompt_tokens": prompt_tokens,
                 "completion_tokens": completion_tokens,
                 "total_tokens": prompt_tokens + completion_tokens,
             },
-            finish_reason=finish_reason,
-            cost_usd=self._build_cost(resolved_model, prompt_tokens, completion_tokens),
+            finish_reason=choice.finish_reason or "stop",
+            cost_usd=self._build_cost(response.model, prompt_tokens, completion_tokens),
             raw_response=response,
         )
 
@@ -164,9 +129,7 @@ class GoogleProvider(BaseLLMProvider):
         **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         """
-        Stream a response from the Google Gemini API.
-
-        Yields content chunks as they are generated.
+        Stream a response from OpenRouter's OpenAI-compatible endpoint.
 
         Args:
             messages: Conversation messages.
@@ -185,26 +148,22 @@ class GoogleProvider(BaseLLMProvider):
         resolved_temp = temperature if temperature is not None else 0.7
         resolved_max = max_tokens or 4096
 
-        system_instruction, contents = self._convert_messages(messages)
+        typed_messages: list[ChatCompletionMessageParam] = [
+            {"role": m["role"], "content": m["content"]} for m in messages
+        ]
 
         try:
-            genai_model = genai.GenerativeModel(
-                model_name=resolved_model,
-                system_instruction=system_instruction or None,
-            )
-
-            generation_config = genai.types.GenerationConfig(
+            stream = await self._client.chat.completions.create(
+                model=resolved_model,
+                messages=typed_messages,
                 temperature=resolved_temp,
-                max_output_tokens=resolved_max,
-            )
-
-            async for chunk in await genai_model.generate_content_async(
-                contents=contents,
-                generation_config=generation_config,
+                max_tokens=resolved_max,
                 stream=True,
-            ):
-                if chunk.text:
-                    yield chunk.text
+                **kwargs,
+            )
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
         except Exception as exc:
             logger.error("Google Gemini streaming failed: %s", exc, exc_info=True)
             raise LLMError(
