@@ -20,6 +20,7 @@ import {
   HelpCircle,
   LogOut,
   User,
+  BookMarked,
 } from "lucide-react";
 import {
   Sidebar,
@@ -57,6 +58,7 @@ const mainNavItems = [
 const analyticsNavItems = [
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Reports", href: "/reports", icon: FileBarChart },
+  { label: "Docs", href: "/docs", icon: BookMarked },
 ];
 
 const settingsNavItems = [
@@ -230,9 +232,11 @@ export function AppSidebar() {
                     Settings
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <HelpCircle className="mr-2 h-4 w-4" />
-                  Help & Support
+                <DropdownMenuItem asChild>
+                  <Link href="/docs">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    Help & Support
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => logout()}>

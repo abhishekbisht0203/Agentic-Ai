@@ -78,13 +78,13 @@ export default function LandingPage() {
               Features
             </Link>
             <Link
-              href="#"
+              href="/settings/billing"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Pricing
             </Link>
             <Link
-              href="#"
+              href="/docs"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Docs
