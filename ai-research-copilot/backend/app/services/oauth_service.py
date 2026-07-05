@@ -1,9 +1,4 @@
-"""
-OAuth service handling Google and GitHub authentication flows.
-
-Manages OAuth state verification, token exchange, user info retrieval,
-and user creation/linking for OAuth providers.
-"""
+"""OAuth service handling Google and GitHub authentication flows."""
 
 import hashlib
 import json
@@ -25,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 STATE_EXPIRY_MINUTES = 10
 
+# Fallback local storage for single-worker setups
+_oauth_states_local: dict[str, dict] = {}
+
 
 class OAuthService:
     """Service for OAuth authentication operations."""
@@ -35,14 +33,7 @@ class OAuthService:
 
     @staticmethod
     def generate_state(provider: str) -> str:
-        """Generate a cryptographically secure state token for CSRF protection.
-
-        Args:
-            provider: The OAuth provider name (google, github).
-
-        Returns:
-            State token hash.
-        """
+        """Generate a cryptographically secure state token for CSRF protection."""
         state_data = secrets.token_urlsafe(32)
         state_hash = hashlib.sha256(state_data.encode()).hexdigest()
 
@@ -68,23 +59,13 @@ class OAuthService:
         except Exception:
             pass
 
-        # Fallback: store in database (for single-worker setups)
+        # Fallback: store locally
         _oauth_states_local[state_hash] = state_payload
         return state_hash
 
     @staticmethod
     async def verify_state(state: str) -> str:
-        """Verify and consume an OAuth state token.
-
-        Args:
-            state: The state token to verify.
-
-        Returns:
-            The provider name associated with the state.
-
-        Raises:
-            AuthenticationError: If state is invalid, expired, or already used.
-        """
+        """Verify and consume an OAuth state token."""
         state_data = None
 
         # Try Redis first
@@ -114,20 +95,9 @@ class OAuthService:
 
         return state_data["provider"]
 
-
-# Fallback local storage for single-worker setups
-_oauth_states_local: dict[str, dict] = {}
-
     @staticmethod
     def get_google_auth_url(state: str) -> str:
-        """Generate Google OAuth authorization URL.
-
-        Args:
-            state: The state token for CSRF protection.
-
-        Returns:
-            Full Google OAuth authorization URL.
-        """
+        """Generate Google OAuth authorization URL."""
         params = {
             "client_id": settings.oauth.google_client_id,
             "redirect_uri": settings.oauth.get_google_redirect_uri(),
@@ -142,14 +112,7 @@ _oauth_states_local: dict[str, dict] = {}
 
     @staticmethod
     def get_github_auth_url(state: str) -> str:
-        """Generate GitHub OAuth authorization URL.
-
-        Args:
-            state: The state token for CSRF protection.
-
-        Returns:
-            Full GitHub OAuth authorization URL.
-        """
+        """Generate GitHub OAuth authorization URL."""
         params = {
             "client_id": settings.oauth.github_client_id,
             "redirect_uri": settings.oauth.get_github_redirect_uri(),
@@ -160,19 +123,8 @@ _oauth_states_local: dict[str, dict] = {}
         return f"https://github.com/login/oauth/authorize?{query_string}"
 
     async def exchange_google_code(self, code: str) -> dict:
-        """Exchange Google authorization code for tokens and get user info.
-
-        Args:
-            code: The authorization code from Google.
-
-        Returns:
-            Dictionary with user info (email, name, avatar, google_id).
-
-        Raises:
-            AuthenticationError: If token exchange or user info fetch fails.
-        """
+        """Exchange Google authorization code for tokens and get user info."""
         async with httpx.AsyncClient() as client:
-            # Exchange code for tokens
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
                 data={
@@ -194,7 +146,6 @@ _oauth_states_local: dict[str, dict] = {}
             if not access_token:
                 raise AuthenticationError(message="No access token received from Google")
 
-            # Get user info
             user_response = await client.get(
                 "https://www.googleapis.com/oauth2/v2/userinfo",
                 headers={"Authorization": f"Bearer {access_token}"},
@@ -215,19 +166,8 @@ _oauth_states_local: dict[str, dict] = {}
             }
 
     async def exchange_github_code(self, code: str) -> dict:
-        """Exchange GitHub authorization code for tokens and get user info.
-
-        Args:
-            code: The authorization code from GitHub.
-
-        Returns:
-            Dictionary with user info (email, name, avatar, github_id).
-
-        Raises:
-            AuthenticationError: If token exchange or user info fetch fails.
-        """
+        """Exchange GitHub authorization code for tokens and get user info."""
         async with httpx.AsyncClient() as client:
-            # Exchange code for access token
             token_response = await client.post(
                 "https://github.com/login/oauth/access_token",
                 json={
@@ -249,7 +189,6 @@ _oauth_states_local: dict[str, dict] = {}
             if not access_token:
                 raise AuthenticationError(message="No access token received from GitHub")
 
-            # Get user info
             user_response = await client.get(
                 "https://api.github.com/user",
                 headers={
@@ -264,7 +203,6 @@ _oauth_states_local: dict[str, dict] = {}
 
             user_info = user_response.json()
 
-            # Get user emails
             emails_response = await client.get(
                 "https://api.github.com/user/emails",
                 headers={
@@ -294,23 +232,7 @@ _oauth_states_local: dict[str, dict] = {}
     async def authenticate_oauth_user(
         self, user_info: dict, provider: str
     ) -> TokenResponse:
-        """Authenticate or create user from OAuth provider info.
-
-        Handles:
-        1. Existing user by provider ID (return existing)
-        2. Existing user by email (link provider)
-        3. New user (create account)
-
-        Args:
-            user_info: User information from OAuth provider.
-            provider: The OAuth provider name (google, github).
-
-        Returns:
-            TokenResponse with JWT tokens.
-
-        Raises:
-            AuthenticationError: If authentication fails.
-        """
+        """Authenticate or create user from OAuth provider info."""
         provider_id_field = f"{provider}_id"
         provider_id = user_info.get(provider_id_field)
 
@@ -319,11 +241,9 @@ _oauth_states_local: dict[str, dict] = {}
                 message=f"No {provider} ID received from OAuth provider"
             )
 
-        # Check if user exists with this provider ID
         existing_user = await self.user_repo.get_by_oauth(provider, provider_id)
 
         if existing_user:
-            # Update last login and avatar if needed
             await self.user_repo.update_last_login(existing_user.id)
             if user_info.get("avatar_url") and not existing_user.avatar_url:
                 await self.user_repo.update(
@@ -331,13 +251,11 @@ _oauth_states_local: dict[str, dict] = {}
                 )
             return await self._create_tokens(existing_user)
 
-        # Check if user exists with the same email
         email = user_info.get("email")
         if email:
             existing_email_user = await self.user_repo.get_by_email(email)
 
             if existing_email_user:
-                # Link the OAuth provider to existing account
                 update_data = {
                     provider_id_field: provider_id,
                     "oauth_provider": provider,
@@ -351,7 +269,6 @@ _oauth_states_local: dict[str, dict] = {}
 
                 return await self._create_tokens(existing_email_user)
 
-        # Create new user
         username = self._generate_username(email, provider, provider_id)
 
         new_user = await self.user_repo.create_user(
@@ -370,22 +287,12 @@ _oauth_states_local: dict[str, dict] = {}
 
     @staticmethod
     def _generate_username(email: str, provider: str, provider_id: str) -> str:
-        """Generate a unique username for OAuth users.
-
-        Args:
-            email: User's email address.
-            provider: OAuth provider name.
-            provider_id: User's ID from the OAuth provider.
-
-        Returns:
-            A unique username string.
-        """
+        """Generate a unique username for OAuth users."""
         if email:
             base_username = email.split("@")[0]
         else:
             base_username = f"{provider}_{provider_id[:8]}"
 
-        # Clean the username
         base_username = "".join(
             c for c in base_username if c.isalnum() or c in "-_"
         ).lower()
@@ -399,14 +306,7 @@ _oauth_states_local: dict[str, dict] = {}
         return base_username
 
     async def _create_tokens(self, user: User) -> TokenResponse:
-        """Create access and refresh tokens for a user.
-
-        Args:
-            user: The authenticated user instance.
-
-        Returns:
-            TokenResponse with tokens and expiration metadata.
-        """
+        """Create access and refresh tokens for a user."""
         access_token = create_access_token(
             subject=str(user.id),
             scopes=[user.role.value] if hasattr(user.role, "value") else [str(user.role)],
