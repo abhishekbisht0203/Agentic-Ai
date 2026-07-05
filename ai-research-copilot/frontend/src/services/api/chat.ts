@@ -69,7 +69,11 @@ export const chatApi = {
     return response.data;
   },
 
-  sendMessageStream: async function* (data: ChatRequest) {
+  async *sendMessageStream(data: ChatRequest): AsyncGenerator<
+    { content?: string; done: boolean; conversation_id?: string; error?: string },
+    void,
+    unknown
+  > {
     const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 
@@ -83,7 +87,14 @@ export const chatApi = {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status}`);
+      let errorMsg = `HTTP error: ${response.status}`;
+      try {
+        const body = await response.json();
+        if (body?.detail) errorMsg = body.detail;
+      } catch {
+        // ignore parse error
+      }
+      throw new Error(errorMsg);
     }
 
     const reader = response.body?.getReader();
@@ -92,24 +103,38 @@ export const chatApi = {
     const decoder = new TextDecoder();
     let buffer = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
           try {
-            const parsed = JSON.parse(line.slice(6));
+            const parsed = JSON.parse(trimmed.slice(6));
             yield parsed;
+            if (parsed.done) return;
           } catch {
             // skip malformed lines
           }
         }
       }
+
+      if (buffer.trim().startsWith("data: ")) {
+        try {
+          const parsed = JSON.parse(buffer.trim().slice(6));
+          yield parsed;
+        } catch {
+          // skip
+        }
+      }
+    } finally {
+      reader.releaseLock();
     }
   },
 

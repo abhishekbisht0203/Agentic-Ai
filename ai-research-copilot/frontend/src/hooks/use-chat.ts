@@ -4,10 +4,11 @@ import { useCallback, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useChatStore } from "@/store/chat-store";
 import { chatApi } from "@/services/api/chat";
-import type { ChatRequest } from "@/types";
+import type { ChatRequest, Message } from "@/types";
 
 export function useChat() {
   const queryClient = useQueryClient();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const conversations = useChatStore((s) => s.conversations);
   const currentConversation = useChatStore((s) => s.currentConversation);
@@ -19,7 +20,6 @@ export function useChat() {
 
   const setConversations = useChatStore((s) => s.setConversations);
   const setCurrentConversation = useChatStore((s) => s.setCurrentConversation);
-  const addMessage = useChatStore((s) => s.addMessage);
   const setIsLoading = useChatStore((s) => s.setIsLoading);
   const setIsStreaming = useChatStore((s) => s.setIsStreaming);
   const setError = useChatStore((s) => s.setError);
@@ -45,23 +45,90 @@ export function useChat() {
     mutationFn: (data: ChatRequest) => chatApi.sendMessage(data),
     onSuccess: (response) => {
       setIsStreaming(false);
-      addMessage(response.message);
-      if (response.citations?.length) {
-        const currentMessages = useChatStore.getState().messages;
-        const lastMsg = currentMessages[currentMessages.length - 1];
-        if (lastMsg) {
-          addMessage({
-            ...lastMsg,
-            metadata: { citations: response.citations },
-          });
-        }
-      }
+      const state = useChatStore.getState();
+      const msgs = [...state.messages, response.message];
+      useChatStore.setState({ messages: msgs });
     },
     onError: (error: Error) => {
       setError(error.message);
       setIsStreaming(false);
     },
   });
+
+  const sendMessageStream = useCallback(
+    async (data: ChatRequest) => {
+      const convId = data.conversation_id;
+      if (!convId) return;
+
+      setError(null);
+      setIsStreaming(true);
+
+      const userMsg: Message = {
+        id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        conversation_id: convId,
+        role: "user",
+        content: data.message,
+        metadata: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const aiMsgId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const aiMsg: Message = {
+        id: aiMsgId,
+        conversation_id: convId,
+        role: "assistant",
+        content: "",
+        metadata: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      useChatStore.setState((state) => ({
+        messages: [...state.messages, userMsg, aiMsg],
+      }));
+
+      let accumulated = "";
+
+      try {
+        const stream = chatApi.sendMessageStream(data);
+        for await (const event of stream) {
+          if (event.error) {
+            setError(event.error);
+            useChatStore.setState((state) => ({
+              messages: state.messages.map((m) =>
+                m.id === aiMsgId ? { ...m, content: event.error || "An error occurred." } : m
+              ),
+            }));
+            break;
+          }
+          if (event.content) {
+            accumulated += event.content;
+            useChatStore.setState((state) => ({
+              messages: state.messages.map((m) =>
+                m.id === aiMsgId ? { ...m, content: accumulated } : m
+              ),
+            }));
+          }
+          if (event.done) {
+            break;
+          }
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Stream failed";
+        setError(msg);
+        useChatStore.setState((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === aiMsgId ? { ...m, content: msg } : m
+          ),
+        }));
+      } finally {
+        setIsStreaming(false);
+        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      }
+    },
+    [setError, setIsStreaming, queryClient]
+  );
 
   const deleteConversation = useMutation({
     mutationFn: (convId: string) => chatApi.deleteConversation(convId),
@@ -100,6 +167,7 @@ export function useChat() {
     searchQuery,
     setSearchQuery,
     sendMessage,
+    sendMessageStream,
     createConversation,
     deleteConversation,
     getConversation,

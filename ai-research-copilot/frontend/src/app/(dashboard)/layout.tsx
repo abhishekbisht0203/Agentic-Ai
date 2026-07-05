@@ -80,7 +80,7 @@ export default function DashboardLayout({
               exit="out"
               variants={pageVariants}
               transition={pageTransition}
-              className="container mx-auto p-6 max-w-7xl"
+              className={pathname.startsWith("/chat") ? "" : "container mx-auto p-6 max-w-7xl"}
             >
               {children}
             </motion.div>

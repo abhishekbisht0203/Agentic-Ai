@@ -28,18 +28,23 @@ export function ChatWindow({
   conversationId,
 }: ChatWindowProps) {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = React.useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
   React.useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
+
+  const displayMessages = messages.filter(
+    (msg) => !(msg.role === "assistant" && msg.id.startsWith("temp-") && !msg.content)
+  );
 
   return (
-    <div className="flex flex-1 flex-col">
-      {messages.length === 0 ? (
+    <div className="flex flex-1 flex-col min-h-0">
+      {displayMessages.length === 0 && !isLoading ? (
         <div className="flex flex-1 flex-col items-center justify-center p-8">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-6">
             <Bot className="h-8 w-8 text-primary" />
@@ -65,18 +70,15 @@ export function ChatWindow({
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-auto">
+        <div ref={containerRef} className="flex-1 overflow-auto">
           <div className="mx-auto max-w-3xl">
-            {messages.map((message) => (
+            {displayMessages.map((message) => (
               <ChatMessage
                 key={message.id}
                 role={message.role as "user" | "assistant"}
                 content={message.content}
               />
             ))}
-            {isLoading && (
-              <ChatMessage role="assistant" content="" isLoading />
-            )}
             <div ref={messagesEndRef} />
           </div>
         </div>

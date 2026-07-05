@@ -9,10 +9,9 @@ import {
   Search,
   MessageSquare,
   Clock,
-  Pin,
   Trash2,
   MoreHorizontal,
-  Loader2,
+  PanelLeftClose,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,11 @@ import { useChatStore } from "@/store/chat-store";
 import { formatRelativeTime, cn } from "@/utils/helpers";
 import { toast } from "sonner";
 
-export function ChatHistory() {
+interface ChatHistoryProps {
+  onToggle?: () => void;
+}
+
+export function ChatHistory({ onToggle }: ChatHistoryProps) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -54,21 +57,31 @@ export function ChatHistory() {
   const conversations = conversationsData?.items ?? [];
 
   const filteredConversations = conversations.filter((conv) =>
-    conv.title.toLowerCase().includes(searchQuery.toLowerCase())
+    conv.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const pinnedConversations = filteredConversations.filter((c) => c.status === "active");
   const recentConversations = filteredConversations;
 
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-muted/30">
-      <div className="p-3">
-        <Button asChild className="w-full justify-start gap-2" variant="outline">
+    <div className="flex h-full w-72 flex-col border-r bg-muted/30 shrink-0">
+      <div className="flex items-center gap-2 p-3">
+        <Button asChild className="flex-1 justify-start gap-2" variant="outline">
           <Link href="/chat">
             <Plus className="h-4 w-4" />
             New Chat
           </Link>
         </Button>
+        {onToggle && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={onToggle}
+            title="Hide sidebar"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <div className="px-3 pb-2">
@@ -97,29 +110,27 @@ export function ChatHistory() {
             ))}
           </div>
         ) : (
-          <>
-            <div>
-              <div className="flex items-center gap-1.5 px-2 py-1.5">
-                <Clock className="h-3 w-3 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">
-                  Recent
-                </span>
-              </div>
-              {recentConversations.map((conv) => (
-                <ConversationItem
-                  key={conv.id}
-                  conversation={conv}
-                  isActive={currentConversation?.id === conv.id}
-                  onDelete={() => deleteMutation.mutate(conv.id)}
-                />
-              ))}
-              {recentConversations.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">
-                  No conversations yet
-                </p>
-              )}
+          <div>
+            <div className="flex items-center gap-1.5 px-2 py-1.5">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Recent
+              </span>
             </div>
-          </>
+            {recentConversations.map((conv) => (
+              <ConversationItem
+                key={conv.id}
+                conversation={conv}
+                isActive={currentConversation?.id === conv.id}
+                onDelete={() => deleteMutation.mutate(conv.id)}
+              />
+            ))}
+            {recentConversations.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                No conversations yet
+              </p>
+            )}
+          </div>
         )}
       </ScrollArea>
     </div>
@@ -148,9 +159,9 @@ function ConversationItem({
       onMouseLeave={() => setIsHovered(false)}
     >
       <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <div className="flex-1 min-w-0">
-        <p className="truncate text-sm">{conversation.title}</p>
-        <p className="text-xs text-muted-foreground">
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <p className="text-sm leading-tight break-words line-clamp-2">{conversation.title || "Untitled"}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
           {formatRelativeTime(conversation.updated_at)}
         </p>
       </div>

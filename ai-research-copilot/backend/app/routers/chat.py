@@ -2,6 +2,7 @@
 
 import json
 import uuid
+import logging
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -24,8 +25,9 @@ from app.schemas.chat import (
     MessageList,
     MessageResponse,
 )
-from app.services.agent_service import AgentService
 from app.services.chat_service import ChatService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -33,11 +35,6 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 async def _get_chat_service(db: AsyncSession = Depends(get_db_session)) -> ChatService:
     """Create a ChatService instance bound to the request-scoped DB session."""
     return ChatService(db)
-
-
-async def _get_agent_service(db: AsyncSession = Depends(get_db_session)) -> AgentService:
-    """Create an AgentService instance bound to the request-scoped DB session."""
-    return AgentService(db)
 
 
 # ------------------------------------------------------------------
@@ -211,7 +208,50 @@ async def delete_bookmark(
 
 
 # ------------------------------------------------------------------
-# Chat send
+# Helpers
+# ------------------------------------------------------------------
+
+
+def _get_llm_provider():
+    """Get the best available LLM provider (opencode > openai > anthropic)."""
+    from app.llms.factory import LLMFactory
+
+    factory = LLMFactory(default_provider="opencode")
+
+    # Try providers in priority order, catch init errors
+    for provider_name in ["opencode", "openai", "anthropic"]:
+        try:
+            provider = factory.get_provider(provider_name)
+            logger.info("Using LLM provider: %s", provider_name)
+            return provider
+        except Exception as exc:
+            logger.warning("Provider '%s' failed to init: %s", provider_name, exc)
+            continue
+
+    raise ValueError(
+        "No LLM provider configured. Set OPENCODE_API_KEY in your .env file. "
+        "Get a free key at https://opencode.ai/zen"
+    )
+
+
+async def _load_conversation_history(
+    chat_service: "ChatService",
+    conv_id: uuid.UUID,
+    user_id: uuid.UUID,
+    max_messages: int = 50,
+) -> list[dict[str, str]]:
+    """Load recent conversation messages from DB for LLM context."""
+    msg_list = await chat_service.get_messages(
+        conv_id=conv_id, user_id=user_id, page=1, page_size=max_messages
+    )
+    history = []
+    for msg in msg_list.items:
+        history.append({"role": msg.role, "content": msg.content})
+    return history
+
+
+# ------------------------------------------------------------------
+# Chat send (non-streaming)
 # ------------------------------------------------------------------
 
 
@@ -224,20 +264,17 @@ async def send_chat(
     data: ChatRequest,
     current_user: User = Depends(get_current_user_from_token),
     chat_service: ChatService = Depends(_get_chat_service),
-    agent_service: AgentService = Depends(_get_agent_service),
 ) -> ChatResponse:
-    """Send a user message, invoke the agent, and return the response."""
-    from app.llms.factory import LLMFactory
+    """Send a user message, invoke the LLM, and return the response."""
     from app.llms.chains.conversation import ConversationChain, ChainConfig
     from app.llms.prompts.templates import get_prompt
 
     conv_id = data.conversation_id
     if conv_id is None:
-        from app.schemas.chat import ConversationCreate
-
         new_conv = await chat_service.create_conversation(
             user_id=current_user.id,
             data=ConversationCreate(
+                title=data.message[:100],
                 agent_type=data.agent_type,
                 knowledge_base_id=data.knowledge_base_id,
             ),
@@ -250,11 +287,13 @@ async def send_chat(
         data=MessageCreate(content=data.message, role="user"),
     )
 
-    agent_type = data.agent_type or "research"
+    agent_type = data.agent_type or "general"
     system_prompt = get_prompt(agent_type)
 
-    factory = LLMFactory(default_provider="openai")
-    provider = factory.get_provider("openai")
+    try:
+        provider = _get_llm_provider()
+    except ValueError as exc:
+        raise ValueError(str(exc))
 
     chain_config = ChainConfig(
         system_prompt=system_prompt,
@@ -263,6 +302,10 @@ async def send_chat(
         model=data.model,
     )
     chain = ConversationChain(llm_provider=provider, config=chain_config)
+
+    history = await _load_conversation_history(chat_service, conv_id, current_user.id)
+    for msg in history[:-1]:
+        chain.get_memory(str(conv_id)).add(msg["role"], msg["content"])
 
     response = await chain.predict(
         user_input=data.message,
@@ -283,6 +326,11 @@ async def send_chat(
     )
 
 
+# ------------------------------------------------------------------
+# Chat send (streaming)
+# ------------------------------------------------------------------
+
+
 @router.post(
     "/send-stream",
     summary="Send a chat message and stream the AI response",
@@ -293,17 +341,15 @@ async def send_chat_stream(
     chat_service: ChatService = Depends(_get_chat_service),
 ) -> StreamingResponse:
     """Send a user message and stream the AI response token by token."""
-    from app.llms.factory import LLMFactory
     from app.llms.chains.conversation import ConversationChain, ChainConfig
     from app.llms.prompts.templates import get_prompt
 
     conv_id = data.conversation_id
     if conv_id is None:
-        from app.schemas.chat import ConversationCreate
-
         new_conv = await chat_service.create_conversation(
             user_id=current_user.id,
             data=ConversationCreate(
+                title=data.message[:100],
                 agent_type=data.agent_type,
                 knowledge_base_id=data.knowledge_base_id,
             ),
@@ -316,11 +362,24 @@ async def send_chat_stream(
         data=MessageCreate(content=data.message, role="user"),
     )
 
-    agent_type = data.agent_type or "research"
+    agent_type = data.agent_type or "general"
     system_prompt = get_prompt(agent_type)
 
-    factory = LLMFactory(default_provider="openai")
-    provider = factory.get_provider("openai")
+    try:
+        provider = _get_llm_provider()
+    except ValueError as exc:
+        async def error_gen():
+            yield f"data: {json.dumps({'error': str(exc), 'done': True})}\n\n"
+        return StreamingResponse(
+            error_gen(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
 
     chain_config = ChainConfig(
         system_prompt=system_prompt,
@@ -329,6 +388,10 @@ async def send_chat_stream(
         model=data.model,
     )
     chain = ConversationChain(llm_provider=provider, config=chain_config)
+
+    history = await _load_conversation_history(chat_service, conv_id, current_user.id)
+    for msg in history[:-1]:
+        chain.get_memory(str(conv_id)).add(msg["role"], msg["content"])
 
     async def event_generator():
         full_response = []
@@ -349,6 +412,7 @@ async def send_chat_stream(
 
             yield f"data: {json.dumps({'content': '', 'done': True, 'conversation_id': str(conv_id)})}\n\n"
         except Exception as e:
+            logger.error("Streaming error: %s", e, exc_info=True)
             yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
 
     return StreamingResponse(
@@ -358,5 +422,7 @@ async def send_chat_stream(
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
         },
     )

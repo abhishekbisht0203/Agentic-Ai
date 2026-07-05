@@ -67,6 +67,9 @@ export interface ChatState {
   setConversations: (conversations: Conversation[]) => void;
   setCurrentConversation: (conversation: ConversationDetail | null) => void;
   addMessage: (message: Message) => void;
+  updateMessage: (id: string, content: string) => void;
+  addOptimisticUserMessage: (content: string, conversationId: string) => string;
+  addPlaceholderAssistantMessage: (conversationId: string) => string;
   setIsLoading: (isLoading: boolean) => void;
   setIsStreaming: (isStreaming: boolean) => void;
   setError: (error: string | null) => void;

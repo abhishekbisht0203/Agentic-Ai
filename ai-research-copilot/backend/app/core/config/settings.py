@@ -162,7 +162,14 @@ class LLMProviderSettings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    # OpenAI / OpenRouter
+    # OpenCode + Zen API (primary provider)
+    opencode_api_key: str | None = Field(default=None, alias="OPENCODE_API_KEY")
+    opencode_base_url: str = Field(default="https://opencode.ai/zen/v1", alias="OPENCODE_BASE_URL")
+    opencode_default_model: str = Field(default="gpt-4o-mini", alias="OPENCODE_DEFAULT_MODEL")
+    opencode_max_tokens: int = Field(default=4096, alias="OPENCODE_MAX_TOKENS")
+    opencode_temperature: float = Field(default=0.7, alias="OPENCODE_TEMPERATURE")
+
+    # OpenAI / OpenRouter (fallback)
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_base_url: str = Field(default="https://openrouter.ai/api/v1", alias="OPENAI_BASE_URL")
     openai_default_model: str = Field(default="openai/gpt-oss-120b:free", alias="OPENAI_DEFAULT_MODEL")
@@ -170,12 +177,12 @@ class LLMProviderSettings(BaseSettings):
     openai_max_tokens: int = Field(default=4096, alias="OPENAI_MAX_TOKENS")
     openai_temperature: float = Field(default=0.7, alias="OPENAI_TEMPERATURE")
 
-    # Anthropic (via OpenRouter)
+    # Anthropic (fallback)
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     anthropic_base_url: str = Field(default="https://openrouter.ai/api/v1", alias="ANTHROPIC_BASE_URL")
     anthropic_default_model: str = Field(default="openai/gpt-oss-120b:free", alias="ANTHROPIC_DEFAULT_MODEL")
 
-    # Google Gemini (via OpenRouter)
+    # Google Gemini (fallback)
     google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
     google_base_url: str = Field(default="https://openrouter.ai/api/v1", alias="GOOGLE_BASE_URL")
     google_default_model: str = Field(default="poolside/laguna-m.1:free", alias="GOOGLE_DEFAULT_MODEL")

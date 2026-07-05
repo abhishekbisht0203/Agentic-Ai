@@ -20,6 +20,12 @@ def _load_providers() -> None:
     if _PROVIDER_CLASSES:
         return
     try:
+        from app.llms.providers.opencode_provider import OpenCodeProvider
+
+        _PROVIDER_CLASSES["opencode"] = OpenCodeProvider
+    except ImportError:
+        logger.debug("OpenCode provider not available")
+    try:
         from app.llms.providers.openai_provider import OpenAIProvider
 
         _PROVIDER_CLASSES["openai"] = OpenAIProvider

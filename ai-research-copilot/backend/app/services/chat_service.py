@@ -96,18 +96,20 @@ class ChatService:
     ) -> ConversationDetail:
         """Retrieve a single conversation by ID with ownership check.
 
+        Also loads the conversation's messages for full context.
+
         Args:
             conv_id: The UUID of the conversation.
             user_id: The UUID of the requesting user.
 
         Returns:
-            The conversation detail.
+            The conversation detail with messages.
 
         Raises:
             NotFoundError: If no conversation with the given ID exists.
             AuthorizationError: If the user does not own the conversation.
         """
-        conversation = await self._conv_repo.get_by_id(conv_id)
+        conversation = await self._conv_repo.get_with_messages(conv_id)
         if conversation is None or conversation.is_deleted:
             raise NotFoundError(
                 message="Conversation not found",
@@ -119,7 +121,13 @@ class ChatService:
                 details={"conversation_id": str(conv_id)},
             )
 
-        return ConversationDetail.model_validate(conversation)
+        detail = ConversationDetail.model_validate(conversation)
+        if hasattr(conversation, "messages") and conversation.messages:
+            detail.messages = [
+                MessageResponse.model_validate(m) for m in conversation.messages
+                if not m.is_deleted
+            ]
+        return detail
 
     async def list_conversations(
         self,

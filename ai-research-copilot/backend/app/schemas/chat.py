@@ -71,42 +71,6 @@ class ConversationUpdate(BaseModel):
         return v
 
 
-class ConversationResponse(BaseModel):
-    """Schema for conversation data returned in API responses."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    user_id: UUID
-    title: Optional[str] = None
-    agent_type: Optional[str] = None
-    model_used: Optional[str] = None
-    status: str
-    message_count: int
-    created_at: datetime
-    updated_at: datetime
-
-
-class ConversationDetail(ConversationResponse):
-    """Extended conversation schema with storage and context details."""
-
-    description: Optional[str] = None
-    token_usage: Optional[dict] = None
-    metadata_extra: Optional[dict] = None
-    knowledge_base_id: Optional[UUID] = None
-
-
-class ConversationList(BaseModel):
-    """Paginated list of conversations."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    items: list[ConversationResponse]
-    total: int
-    page: int
-    page_size: int
-
-
 class MessageCreate(BaseModel):
     """Schema for adding a message to a conversation."""
 
@@ -147,7 +111,12 @@ class MessageResponse(BaseModel):
     agent_type: Optional[str] = None
     tool_calls: Optional[list] = None
     citations: Optional[list] = None
+    metadata: Optional[dict] = Field(
+        default=None,
+        validation_alias="metadata_extra",
+    )
     created_at: datetime
+    updated_at: datetime
 
 
 class MessageList(BaseModel):
@@ -157,6 +126,43 @@ class MessageList(BaseModel):
 
     items: list[MessageResponse]
     total: int
+
+
+class ConversationResponse(BaseModel):
+    """Schema for conversation data returned in API responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    user_id: UUID
+    title: Optional[str] = None
+    description: Optional[str] = None
+    agent_type: Optional[str] = None
+    model_used: Optional[str] = None
+    status: str
+    message_count: int
+    knowledge_base_id: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationDetail(ConversationResponse):
+    """Extended conversation schema with messages and context details."""
+
+    messages: list[MessageResponse] = Field(default_factory=list)
+    token_usage: Optional[dict] = None
+    metadata_extra: Optional[dict] = None
+
+
+class ConversationList(BaseModel):
+    """Paginated list of conversations."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    items: list[ConversationResponse]
+    total: int
+    page: int
+    page_size: int
 
 
 class ChatRequest(BaseModel):
