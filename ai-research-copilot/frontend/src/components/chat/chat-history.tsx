@@ -63,7 +63,7 @@ export function ChatHistory({ onToggle }: ChatHistoryProps) {
   const recentConversations = filteredConversations;
 
   return (
-    <div className="flex h-full w-72 flex-col border-r bg-muted/30 shrink-0">
+    <div className="flex h-full w-72 shrink-0 flex-col border-r bg-background">
       <div className="flex items-center gap-2 p-3">
         <Button asChild className="flex-1 justify-start gap-2" variant="outline">
           <Link href="/chat">
@@ -73,7 +73,7 @@ export function ChatHistory({ onToggle }: ChatHistoryProps) {
         </Button>
         {onToggle && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             className="h-9 w-9 shrink-0"
             onClick={onToggle}
