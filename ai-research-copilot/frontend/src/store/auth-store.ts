@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AuthState, LoginRequest, RegisterRequest } from "@/types";
-import { authApi } from "@/services/api/auth";
+import { authApi, clearAuthCookies, setAuthCookies } from "@/services/api/auth";
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -14,9 +14,7 @@ export const useAuthStore = create<AuthState>()(
       login: async (data: LoginRequest) => {
         set({ isLoading: true, error: null });
         try {
-          const tokens = await authApi.login(data);
-          localStorage.setItem("access_token", tokens.access_token);
-          localStorage.setItem("refresh_token", tokens.refresh_token);
+          await authApi.login(data);
           const user = await authApi.getMe();
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (error: unknown) {
@@ -30,9 +28,7 @@ export const useAuthStore = create<AuthState>()(
       register: async (data: RegisterRequest) => {
         set({ isLoading: true, error: null });
         try {
-          const tokens = await authApi.register(data);
-          localStorage.setItem("access_token", tokens.access_token);
-          localStorage.setItem("refresh_token", tokens.refresh_token);
+          await authApi.register(data);
           const user = await authApi.getMe();
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (error: unknown) {
@@ -44,21 +40,16 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        try {
-          await authApi.logout();
-        } catch {
-          // ignore logout errors
-        } finally {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
-          set({ user: null, isAuthenticated: false });
-        }
+        await authApi.logout();
+        clearAuthCookies();
+        set({ user: null, isAuthenticated: false });
       },
 
       fetchUser: async () => {
         const token = localStorage.getItem("access_token");
         if (!token) {
           set({ isAuthenticated: false, isLoading: false });
+          clearAuthCookies();
           return;
         }
         set({ isLoading: true });
@@ -68,6 +59,7 @@ export const useAuthStore = create<AuthState>()(
         } catch {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
+          clearAuthCookies();
           set({ user: null, isAuthenticated: false, isLoading: false });
         }
       },
@@ -92,6 +84,7 @@ export const useAuthStore = create<AuthState>()(
 
           localStorage.setItem("access_token", accessToken);
           localStorage.setItem("refresh_token", refreshToken);
+          setAuthCookies(accessToken, refreshToken);
 
           const user = await authApi.getMe();
           set({ user, isAuthenticated: true, isLoading: false });
@@ -100,6 +93,7 @@ export const useAuthStore = create<AuthState>()(
             error instanceof Error ? error.message : "OAuth callback failed";
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
+          clearAuthCookies();
           set({ error: message, isLoading: false, user: null, isAuthenticated: false });
         }
       },

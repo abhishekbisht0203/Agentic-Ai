@@ -39,19 +39,22 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, isLoading, fetchUser } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const fetchUser = useAuthStore((s) => s.fetchUser);
+  const [authChecked, setAuthChecked] = React.useState(false);
 
   React.useEffect(() => {
-    fetchUser();
+    fetchUser().finally(() => setAuthChecked(true));
   }, [fetchUser]);
 
   React.useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (authChecked && !isLoading && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [authChecked, isLoading, isAuthenticated, router]);
 
-  if (isLoading) {
+  if (!authChecked || isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">

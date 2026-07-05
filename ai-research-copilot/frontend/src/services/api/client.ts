@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import { setAuthCookies, clearAuthCookies } from "./auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
@@ -44,6 +45,7 @@ apiClient.interceptors.response.use(
             const { access_token, refresh_token } = response.data;
             localStorage.setItem("access_token", access_token);
             localStorage.setItem("refresh_token", refresh_token);
+            setAuthCookies(access_token, refresh_token);
 
             if (originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${access_token}`;
@@ -55,6 +57,7 @@ apiClient.interceptors.response.use(
         if (typeof window !== "undefined") {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
+          clearAuthCookies();
           window.location.href = "/login";
         }
       }
