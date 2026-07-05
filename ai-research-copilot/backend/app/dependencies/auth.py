@@ -17,8 +17,8 @@ security = HTTPBearer()
 
 
 async def get_current_user_from_token(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db_session),
 ) -> User:
     """Get current authenticated user from JWT token."""
     token = credentials.credentials
@@ -37,7 +37,7 @@ def require_role(role: Role):
     """Dependency factory that requires a specific role."""
 
     async def _check_role(
-        current_user: Annotated[User, Depends(get_current_user_from_token)],
+        current_user: User = Depends(get_current_user_from_token),
     ) -> User:
         user_role = Role(current_user.role.value)
         if not has_permission(user_role, Permission.ALL) and user_role != role:
@@ -54,7 +54,7 @@ def require_permission(permission: Permission):
     """Dependency factory that requires a specific permission."""
 
     async def _check_perm(
-        current_user: Annotated[User, Depends(get_current_user_from_token)],
+        current_user: User = Depends(get_current_user_from_token),
     ) -> User:
         user_role = Role(current_user.role.value)
         if not has_permission(user_role, permission):

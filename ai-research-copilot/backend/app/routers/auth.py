@@ -33,13 +33,9 @@ security = HTTPBearer(auto_error=False)
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register(
     data: RegisterRequest,
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    db: AsyncSession = Depends(get_db_session),
 ) -> TokenResponse:
-    """Register a new user with email, username, and password.
-
-    No authentication required. Returns access and refresh tokens
-    upon successful registration.
-    """
+    """Register a new user with email, username, and password."""
     service = AuthService(db)
     return await service.register(data)
 
@@ -47,13 +43,9 @@ async def register(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     data: LoginRequest,
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    db: AsyncSession = Depends(get_db_session),
 ) -> TokenResponse:
-    """Authenticate a user with email and password.
-
-    No authentication required. Returns access and refresh tokens
-    upon successful authentication.
-    """
+    """Authenticate a user with email and password."""
     service = AuthService(db)
     return await service.login(data)
 
@@ -61,12 +53,9 @@ async def login(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
     data: RefreshTokenRequest,
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    db: AsyncSession = Depends(get_db_session),
 ) -> TokenResponse:
-    """Refresh an access token using a valid refresh token.
-
-    No authentication required. Returns a new token pair.
-    """
+    """Refresh an access token using a valid refresh token."""
     service = AuthService(db)
     return await service.refresh_token(data)
 
@@ -74,28 +63,21 @@ async def refresh_token(
 @router.post("/change-password", status_code=204)
 async def change_password(
     data: ChangePasswordRequest,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
-    """Change the authenticated user's password.
-
-    Requires authentication. Verifies the current password before
-    applying the new one.
-    """
+    """Change the authenticated user's password."""
     service = AuthService(db)
     await service.change_password(current_user.id, data)
 
 
 @router.post("/logout", status_code=204)
 async def logout(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
-    """Log out the current user by invalidating their session.
-
-    Requires authentication. Marks the current session as inactive.
-    """
+    """Log out the current user by invalidating their session."""
     service = AuthService(db)
     token = credentials.credentials if credentials else ""
     await service.logout(current_user.id, token)
@@ -103,13 +85,9 @@ async def logout(
 
 @router.get("/me")
 async def get_current_user(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
+    current_user: User = Depends(get_current_user_from_token),
 ) -> dict:
-    """Get the current authenticated user's profile information.
-
-    Requires authentication. Returns user details including
-    email, username, role, and account status.
-    """
+    """Get the current authenticated user's profile information."""
     return {
         "id": str(current_user.id),
         "email": current_user.email,
@@ -132,11 +110,7 @@ async def get_current_user(
 
 @router.get("/google/login")
 async def google_login() -> RedirectResponse:
-    """Initiate Google OAuth login flow.
-
-    Generates a state token for CSRF protection and redirects
-    the user to Google's authorization page.
-    """
+    """Initiate Google OAuth login flow."""
     if not settings.oauth.google_client_id:
         return RedirectResponse(
             url=f"{settings.oauth.frontend_url}/login?error=oauth_disabled"
@@ -151,16 +125,11 @@ async def google_login() -> RedirectResponse:
 async def google_callback(
     code: str = Query(..., description="Authorization code from Google"),
     state: str = Query(..., description="State parameter for CSRF protection"),
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    db: AsyncSession = Depends(get_db_session),
 ) -> RedirectResponse:
-    """Handle Google OAuth callback.
-
-    Exchanges the authorization code for tokens, retrieves user info,
-    and creates or links the user account. Redirects to frontend
-    with tokens in URL fragment.
-    """
+    """Handle Google OAuth callback."""
     try:
-        OAuthService.verify_state(state)
+        await OAuthService.verify_state(state)
         oauth_service = OAuthService(db)
         user_info = await oauth_service.exchange_google_code(code)
         token_response = await oauth_service.authenticate_oauth_user(user_info, "google")
@@ -183,11 +152,7 @@ async def google_callback(
 
 @router.get("/github/login")
 async def github_login() -> RedirectResponse:
-    """Initiate GitHub OAuth login flow.
-
-    Generates a state token for CSRF protection and redirects
-    the user to GitHub's authorization page.
-    """
+    """Initiate GitHub OAuth login flow."""
     if not settings.oauth.github_client_id:
         return RedirectResponse(
             url=f"{settings.oauth.frontend_url}/login?error=oauth_disabled"
@@ -202,16 +167,11 @@ async def github_login() -> RedirectResponse:
 async def github_callback(
     code: str = Query(..., description="Authorization code from GitHub"),
     state: str = Query(..., description="State parameter for CSRF protection"),
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    db: AsyncSession = Depends(get_db_session),
 ) -> RedirectResponse:
-    """Handle GitHub OAuth callback.
-
-    Exchanges the authorization code for tokens, retrieves user info,
-    and creates or links the user account. Redirects to frontend
-    with tokens in URL fragment.
-    """
+    """Handle GitHub OAuth callback."""
     try:
-        OAuthService.verify_state(state)
+        await OAuthService.verify_state(state)
         oauth_service = OAuthService(db)
         user_info = await oauth_service.exchange_github_code(code)
         token_response = await oauth_service.authenticate_oauth_user(user_info, "github")

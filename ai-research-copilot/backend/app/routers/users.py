@@ -1,7 +1,6 @@
 """User management router handling profiles, API keys, and audit logs."""
 
 import uuid
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,28 +42,22 @@ def _user_response(user: User) -> dict:
 
 @router.get("/", response_model=UserList)
 async def list_users(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(require_role(Role.ADMIN)),
+    db: AsyncSession = Depends(get_db_session),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     search: str | None = Query(None, description="Search by email, username, or full name"),
 ) -> UserList:
-    """List all users with pagination and optional search.
-
-    Admin only. Supports filtering by email, username, or full name.
-    """
+    """List all users with pagination and optional search."""
     service = UserService(db)
     return await service.list_users(page=page, page_size=page_size, search=search)
 
 
 @router.get("/me")
 async def get_current_user_profile(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
+    current_user: User = Depends(get_current_user_from_token),
 ) -> dict:
-    """Get the current authenticated user's full profile.
-
-    Returns user details including preferences and account metadata.
-    """
+    """Get the current authenticated user's full profile."""
     return {
         **_user_response(current_user),
         "oauth_provider": current_user.oauth_provider,
@@ -76,13 +69,10 @@ async def get_current_user_profile(
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user_by_id(
     user_id: uuid.UUID,
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(require_role(Role.ADMIN)),
+    db: AsyncSession = Depends(get_db_session),
 ) -> UserResponse:
-    """Get a specific user by their ID.
-
-    Admin only.
-    """
+    """Get a specific user by their ID."""
     service = UserService(db)
     user = await service.get_user(user_id)
     return UserResponse.model_validate(user)
@@ -92,14 +82,10 @@ async def get_user_by_id(
 async def update_user(
     user_id: uuid.UUID,
     data: UserUpdate,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> UserResponse:
-    """Update a user's profile information.
-
-    Admin users can update any user. Regular users can only update
-    their own profile.
-    """
+    """Update a user's profile information."""
     user_role = Role(current_user.role.value) if hasattr(current_user.role, "value") else Role(current_user.role)
     is_admin = has_permission(user_role, Permission.ALL) or user_role == Role.ADMIN
     is_self = current_user.id == user_id
@@ -115,13 +101,10 @@ async def update_user(
 @router.delete("/{user_id}", status_code=204)
 async def delete_user(
     user_id: uuid.UUID,
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(require_role(Role.ADMIN)),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
-    """Soft-delete a user and all associated data.
-
-    Admin only.
-    """
+    """Soft-delete a user and all associated data."""
     service = UserService(db)
     await service.delete_user(user_id)
 
@@ -129,13 +112,10 @@ async def delete_user(
 @router.put("/me/preferences")
 async def update_own_preferences(
     data: UserPreferencesUpdate,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> dict:
-    """Update the current user's preferences.
-
-    Replaces the entire preferences dictionary with the provided values.
-    """
+    """Update the current user's preferences."""
     service = UserService(db)
     updated_prefs = await service.update_preferences(current_user.id, data)
     return {"preferences": updated_prefs}
@@ -144,14 +124,10 @@ async def update_own_preferences(
 @router.post("/me/api-keys", response_model=dict, status_code=201)
 async def create_api_key(
     data: APIKeyCreate,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> dict:
-    """Create a new API key for the current user.
-
-    Returns the full key value only at creation time. Store it securely
-    as it cannot be retrieved later.
-    """
+    """Create a new API key for the current user."""
     service = UserService(db)
     result = await service.create_api_key(current_user.id, data)
     return {
@@ -169,13 +145,10 @@ async def create_api_key(
 
 @router.get("/me/api-keys", response_model=list[dict])
 async def list_api_keys(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> list[dict]:
-    """List all API keys for the current user.
-
-    Does not include full key values for security.
-    """
+    """List all API keys for the current user."""
     service = UserService(db)
     keys = await service.list_api_keys(current_user.id)
     return [
@@ -196,28 +169,22 @@ async def list_api_keys(
 @router.delete("/me/api-keys/{key_id}", status_code=204)
 async def revoke_api_key(
     key_id: uuid.UUID,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
-    """Revoke (deactivate) an API key.
-
-    The key will be marked as inactive and soft-deleted.
-    """
+    """Revoke (deactivate) an API key."""
     service = UserService(db)
     await service.revoke_api_key(current_user.id, key_id)
 
 
 @router.get("/me/audit-logs", response_model=list[dict])
 async def get_audit_logs(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ) -> list[dict]:
-    """Get paginated audit logs for the current user.
-
-    Returns a chronological list of actions performed by the user.
-    """
+    """Get paginated audit logs for the current user."""
     service = UserService(db)
     logs = await service.get_audit_logs(current_user.id, page=page, page_size=page_size)
     return [

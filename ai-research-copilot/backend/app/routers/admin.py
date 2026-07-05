@@ -1,7 +1,5 @@
 """Admin router for administrative operations and system statistics."""
 
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,10 +16,10 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 
 @router.get("/users", response_model=UserList)
 async def list_users(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
-    page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    current_user: User = Depends(require_role(Role.ADMIN)),
+    db: AsyncSession = Depends(get_db_session),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     search: str | None = Query(default=None, max_length=255),
 ) -> UserList:
     """List all users with pagination and optional search (admin only)."""
@@ -31,13 +29,10 @@ async def list_users(
 
 @router.get("/stats")
 async def get_system_stats(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(require_role(Role.ADMIN)),
+    db: AsyncSession = Depends(get_db_session),
 ) -> dict:
-    """Get system-wide statistics (admin only).
-
-    Returns user counts and role distribution.
-    """
+    """Get system-wide statistics (admin only)."""
     total_users = await db.execute(select(func.count()).select_from(User).where(User.is_deleted == False))
     total_count = total_users.scalar() or 0
 

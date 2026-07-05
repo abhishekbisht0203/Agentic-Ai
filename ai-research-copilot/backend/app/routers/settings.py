@@ -1,7 +1,5 @@
 """Settings router for application info and user preferences."""
 
-from typing import Annotated
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,8 +15,8 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 
 @router.get("/preferences")
 async def get_preferences(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> list[UserPreferenceResponse]:
     """Get all preferences for the current user."""
     service = MemoryService(db)
@@ -28,8 +26,8 @@ async def get_preferences(
 @router.put("/preferences", response_model=UserPreferenceResponse)
 async def update_preference(
     data: UserPreferenceUpdate,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> UserPreferenceResponse:
     """Create or update a user preference."""
     service = MemoryService(db)

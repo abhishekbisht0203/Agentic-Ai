@@ -1,7 +1,6 @@
 """Analytics router for reports, visualizations, activity, and summary endpoints."""
 
 import uuid
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,8 +26,8 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
 @router.post("/reports", response_model=AnalyticsReportResponse, status_code=201)
 async def create_report(
     data: AnalyticsReportCreate,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> AnalyticsReportResponse:
     """Create a new analytics report."""
     service = AnalyticsService(db)
@@ -37,10 +36,10 @@ async def create_report(
 
 @router.get("/reports", response_model=AnalyticsReportList)
 async def list_reports(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
-    page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
 ) -> AnalyticsReportList:
     """List analytics reports for the current user with pagination."""
     service = AnalyticsService(db)
@@ -50,8 +49,8 @@ async def list_reports(
 @router.get("/reports/{report_id}", response_model=AnalyticsReportResponse)
 async def get_report(
     report_id: uuid.UUID,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> AnalyticsReportResponse:
     """Get a single analytics report by ID."""
     service = AnalyticsService(db)
@@ -61,8 +60,8 @@ async def get_report(
 @router.delete("/reports/{report_id}", status_code=204)
 async def delete_report(
     report_id: uuid.UUID,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     """Delete an analytics report."""
     service = AnalyticsService(db)
@@ -72,8 +71,8 @@ async def delete_report(
 @router.post("/visualizations", response_model=VisualizationResponse, status_code=201)
 async def create_visualization(
     data: VisualizationCreate,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> VisualizationResponse:
     """Create a new visualization."""
     service = AnalyticsService(db)
@@ -82,10 +81,10 @@ async def create_visualization(
 
 @router.get("/visualizations", response_model=VisualizationList)
 async def list_visualizations(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
-    page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
 ) -> VisualizationList:
     """List visualizations for the current user with pagination."""
     service = AnalyticsService(db)
@@ -95,8 +94,8 @@ async def list_visualizations(
 @router.get("/visualizations/{viz_id}", response_model=VisualizationResponse)
 async def get_visualization(
     viz_id: uuid.UUID,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> VisualizationResponse:
     """Get a single visualization by ID."""
     service = AnalyticsService(db)
@@ -106,8 +105,8 @@ async def get_visualization(
 @router.delete("/visualizations/{viz_id}", status_code=204)
 async def delete_visualization(
     viz_id: uuid.UUID,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     """Delete a visualization."""
     service = AnalyticsService(db)
@@ -116,10 +115,10 @@ async def delete_visualization(
 
 @router.get("/activity", response_model=UserActivityList)
 async def get_user_activity(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
-    page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
 ) -> UserActivityList:
     """Get paginated user activity records."""
     service = AnalyticsService(db)
@@ -128,8 +127,8 @@ async def get_user_activity(
 
 @router.get("/summary", response_model=AnalyticsSummary)
 async def get_analytics_summary(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session),
 ) -> AnalyticsSummary:
     """Get aggregated analytics summary for the current user."""
     service = AnalyticsService(db)

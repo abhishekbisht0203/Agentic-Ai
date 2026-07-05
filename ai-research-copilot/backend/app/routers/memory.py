@@ -1,11 +1,7 @@
-"""Memory and user-preference API routes.
-
-Endpoints for managing long-term memory entries, semantic search,
-and user preference management.
-"""
+"""Memory and user-preference API routes."""
 
 import uuid
-from typing import Annotated, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,8 +22,8 @@ from app.services.memory_service import MemoryService
 router = APIRouter(prefix="/memory", tags=["Memory"])
 
 
-def _get_memory_service(
-    db: Annotated[AsyncSession, Depends(get_db_session)],
+async def _get_memory_service(
+    db: AsyncSession = Depends(get_db_session),
 ) -> MemoryService:
     """Create a MemoryService instance bound to the request-scoped DB session."""
     return MemoryService(db)
@@ -46,8 +42,8 @@ def _get_memory_service(
 )
 async def create_memory_entry(
     data: MemoryEntryCreate,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    memory_service: Annotated[MemoryService, Depends(_get_memory_service)],
+    current_user: User = Depends(get_current_user_from_token),
+    memory_service: MemoryService = Depends(_get_memory_service),
 ) -> MemoryEntryResponse:
     """Create a new long-term memory entry for the authenticated user."""
     return await memory_service.create_memory_entry(user_id=current_user.id, data=data)
@@ -59,13 +55,11 @@ async def create_memory_entry(
     summary="List memory entries",
 )
 async def list_memory_entries(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    memory_service: Annotated[MemoryService, Depends(_get_memory_service)],
-    memory_type: Annotated[
-        Optional[str], Query(description="Filter by memory type")
-    ] = None,
-    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100, description="Items per page")] = 20,
+    current_user: User = Depends(get_current_user_from_token),
+    memory_service: MemoryService = Depends(_get_memory_service),
+    memory_type: Optional[str] = Query(None, description="Filter by memory type"),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ) -> MemoryEntryList:
     """Return a paginated list of memory entries, optionally filtered by type."""
     return await memory_service.list_memory_entries(
@@ -84,8 +78,8 @@ async def list_memory_entries(
 async def update_memory_entry(
     entry_id: uuid.UUID,
     data: MemoryEntryUpdate,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    memory_service: Annotated[MemoryService, Depends(_get_memory_service)],
+    current_user: User = Depends(get_current_user_from_token),
+    memory_service: MemoryService = Depends(_get_memory_service),
 ) -> MemoryEntryResponse:
     """Update a memory entry (content or active status)."""
     return await memory_service.update_memory_entry(
@@ -100,8 +94,8 @@ async def update_memory_entry(
 )
 async def delete_memory_entry(
     entry_id: uuid.UUID,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    memory_service: Annotated[MemoryService, Depends(_get_memory_service)],
+    current_user: User = Depends(get_current_user_from_token),
+    memory_service: MemoryService = Depends(_get_memory_service),
 ) -> None:
     """Soft-delete a memory entry."""
     await memory_service.delete_memory_entry(
@@ -120,10 +114,10 @@ async def delete_memory_entry(
     summary="Search memory entries",
 )
 async def search_memory(
-    query: Annotated[str, Query(min_length=1, description="Search query")],
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    memory_service: Annotated[MemoryService, Depends(_get_memory_service)],
-    limit: Annotated[int, Query(ge=1, le=50, description="Max results")] = 10,
+    query: str = Query(..., min_length=1, description="Search query"),
+    current_user: User = Depends(get_current_user_from_token),
+    memory_service: MemoryService = Depends(_get_memory_service),
+    limit: int = Query(10, ge=1, le=50, description="Max results"),
 ) -> list[MemoryEntryResponse]:
     """Search memory entries by content using semantic similarity."""
     return await memory_service.search_memory(
@@ -142,8 +136,8 @@ async def search_memory(
     summary="Get user preferences",
 )
 async def get_preferences(
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    memory_service: Annotated[MemoryService, Depends(_get_memory_service)],
+    current_user: User = Depends(get_current_user_from_token),
+    memory_service: MemoryService = Depends(_get_memory_service),
 ) -> list[UserPreferenceResponse]:
     """Return all preferences for the authenticated user."""
     return await memory_service.get_preferences(user_id=current_user.id)
@@ -156,8 +150,8 @@ async def get_preferences(
 )
 async def update_preference(
     data: UserPreferenceUpdate,
-    current_user: Annotated[User, Depends(get_current_user_from_token)],
-    memory_service: Annotated[MemoryService, Depends(_get_memory_service)],
+    current_user: User = Depends(get_current_user_from_token),
+    memory_service: MemoryService = Depends(_get_memory_service),
 ) -> UserPreferenceResponse:
     """Create or update a user preference (upsert by category + key)."""
     return await memory_service.update_preference(user_id=current_user.id, data=data)
