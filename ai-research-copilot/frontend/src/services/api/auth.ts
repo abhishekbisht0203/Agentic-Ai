@@ -5,7 +5,10 @@ import type {
   TokenResponse,
   ChangePasswordRequest,
   User,
+  OAuthProvider,
 } from "@/types";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 export const authApi = {
   login: async (data: LoginRequest): Promise<TokenResponse> => {
@@ -36,5 +39,9 @@ export const authApi = {
 
   changePassword: async (data: ChangePasswordRequest): Promise<void> => {
     await apiClient.post("/auth/change-password", data);
+  },
+
+  getOAuthUrl: (provider: OAuthProvider): string => {
+    return `${API_BASE_URL}/auth/${provider}/login`;
   },
 };

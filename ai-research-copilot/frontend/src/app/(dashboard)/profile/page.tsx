@@ -226,6 +226,22 @@ export default function ProfilePage() {
                   </p>
                 </div>
               </div>
+              {currentUser?.oauth_provider && (
+                <>
+                  <Separator />
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <Badge variant="secondary" className="capitalize">
+                        {currentUser.oauth_provider}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Connected Account
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

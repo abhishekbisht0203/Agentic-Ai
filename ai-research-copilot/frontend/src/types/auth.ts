@@ -42,6 +42,8 @@ export interface RefreshTokenRequest {
   refresh_token: string;
 }
 
+export type OAuthProvider = "google" | "github";
+
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -51,6 +53,7 @@ export interface AuthState {
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
+  handleOAuthCallback: (hash: string) => Promise<void>;
   setUser: (user: User | null) => void;
   clearError: () => void;
 }

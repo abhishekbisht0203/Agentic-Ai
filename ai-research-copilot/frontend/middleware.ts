@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 
 const protectedRoutes = ["/dashboard", "/chat", "/documents", "/knowledge", "/agents", "/workflows", "/analytics", "/settings", "/admin", "/reports"];
 const authRoutes = ["/login", "/register", "/forgot-password"];
+const oauthCallbackRoutes = ["/auth/callback"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -12,6 +13,12 @@ export function middleware(request: NextRequest) {
 
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+  const isOAuthCallback = oauthCallbackRoutes.some((route) => pathname.startsWith(route));
+
+  // Allow OAuth callback routes to pass through
+  if (isOAuthCallback) {
+    return NextResponse.next();
+  }
 
   if (isProtectedRoute && !token) {
     const url = request.nextUrl.clone();

@@ -72,6 +72,38 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      handleOAuthCallback: async (hash: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const params = new URLSearchParams(hash.replace(/^#/, ""));
+          const accessToken = params.get("access_token");
+          const refreshToken = params.get("refresh_token");
+          const errorParam = params.get("error");
+
+          if (errorParam) {
+            set({ error: "OAuth authentication failed", isLoading: false });
+            return;
+          }
+
+          if (!accessToken || !refreshToken) {
+            set({ error: "Missing tokens from OAuth response", isLoading: false });
+            return;
+          }
+
+          localStorage.setItem("access_token", accessToken);
+          localStorage.setItem("refresh_token", refreshToken);
+
+          const user = await authApi.getMe();
+          set({ user, isAuthenticated: true, isLoading: false });
+        } catch (error: unknown) {
+          const message =
+            error instanceof Error ? error.message : "OAuth callback failed";
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          set({ error: message, isLoading: false, user: null, isAuthenticated: false });
+        }
+      },
+
       setUser: (user) => set({ user }),
       clearError: () => set({ error: null }),
     }),

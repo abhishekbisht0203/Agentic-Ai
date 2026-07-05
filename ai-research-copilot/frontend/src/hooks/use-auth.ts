@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { useCallback } from "react";
+import { authApi } from "@/services/api/auth";
+import type { OAuthProvider } from "@/types";
 
 export function useAuth() {
   const router = useRouter();
@@ -38,6 +40,13 @@ export function useAuth() {
     router.push("/login");
   }, [logoutAction, router]);
 
+  const loginWithOAuth = useCallback(
+    (provider: OAuthProvider) => {
+      window.location.href = authApi.getOAuthUrl(provider);
+    },
+    []
+  );
+
   return {
     user,
     isAuthenticated,
@@ -46,6 +55,7 @@ export function useAuth() {
     login,
     register,
     logout,
+    loginWithOAuth,
     clearError,
   };
 }

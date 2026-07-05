@@ -119,17 +119,42 @@ class OAuthSettings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
+    # Frontend URL (for redirects after OAuth)
+    frontend_url: str = Field(default="http://localhost:3000", alias="FRONTEND_URL")
+    backend_url: str = Field(default="http://localhost:8000", alias="BACKEND_URL")
+
     # GitHub OAuth
     github_client_id: str | None = Field(default=None, alias="GITHUB_CLIENT_ID")
     github_client_secret: str | None = Field(default=None, alias="GITHUB_CLIENT_SECRET")
+    github_redirect_uri: str | None = Field(default=None, alias="GITHUB_REDIRECT_URI")
 
     # Google OAuth
     google_client_id: str | None = Field(default=None, alias="GOOGLE_CLIENT_ID")
     google_client_secret: str | None = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
+    google_redirect_uri: str | None = Field(default=None, alias="GOOGLE_REDIRECT_URI")
 
     # Microsoft OAuth
     microsoft_client_id: str | None = Field(default=None, alias="MICROSOFT_CLIENT_ID")
     microsoft_client_secret: str | None = Field(default=None, alias="MICROSOFT_CLIENT_SECRET")
+    microsoft_redirect_uri: str | None = Field(default=None, alias="MICROSOFT_REDIRECT_URI")
+
+    def get_github_redirect_uri(self) -> str:
+        """Get GitHub redirect URI, falling back to default."""
+        if self.github_redirect_uri:
+            return self.github_redirect_uri
+        return f"{self.backend_url}/api/v1/auth/github/callback"
+
+    def get_google_redirect_uri(self) -> str:
+        """Get Google redirect URI, falling back to default."""
+        if self.google_redirect_uri:
+            return self.google_redirect_uri
+        return f"{self.backend_url}/api/v1/auth/google/callback"
+
+    def get_microsoft_redirect_uri(self) -> str:
+        """Get Microsoft redirect URI, falling back to default."""
+        if self.microsoft_redirect_uri:
+            return self.microsoft_redirect_uri
+        return f"{self.backend_url}/api/v1/auth/microsoft/callback"
 
 
 class LLMProviderSettings(BaseSettings):

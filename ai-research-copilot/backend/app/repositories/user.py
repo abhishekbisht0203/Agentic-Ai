@@ -58,6 +58,9 @@ class UserRepository(BaseRepository[User]):
     ) -> User | None:
         """Retrieve a user by OAuth provider and external user ID.
 
+        Supports lookup by dedicated provider columns (google_id, github_id)
+        as well as the legacy oauth_provider/oauth_id columns.
+
         Args:
             oauth_provider: The OAuth provider name (e.g., 'github', 'google').
             oauth_id: The external user ID from the OAuth provider.
@@ -65,9 +68,54 @@ class UserRepository(BaseRepository[User]):
         Returns:
             The matching User instance, or None if not found.
         """
+        # Check dedicated columns first
+        if oauth_provider == "google":
+            query = select(User).where(
+                User.google_id == oauth_id,
+                User.is_deleted == False,
+            )
+        elif oauth_provider == "github":
+            query = select(User).where(
+                User.github_id == oauth_id,
+                User.is_deleted == False,
+            )
+        else:
+            # Fallback to legacy columns
+            query = select(User).where(
+                User.oauth_provider == oauth_provider,
+                User.oauth_id == oauth_id,
+                User.is_deleted == False,
+            )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_by_google_id(self, google_id: str) -> User | None:
+        """Retrieve a user by Google ID.
+
+        Args:
+            google_id: The Google OAuth user ID.
+
+        Returns:
+            The matching User instance, or None if not found.
+        """
         query = select(User).where(
-            User.oauth_provider == oauth_provider,
-            User.oauth_id == oauth_id,
+            User.google_id == google_id,
+            User.is_deleted == False,
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_by_github_id(self, github_id: str) -> User | None:
+        """Retrieve a user by GitHub ID.
+
+        Args:
+            github_id: The GitHub OAuth user ID.
+
+        Returns:
+            The matching User instance, or None if not found.
+        """
+        query = select(User).where(
+            User.github_id == github_id,
             User.is_deleted == False,
         )
         result = await self.db.execute(query)

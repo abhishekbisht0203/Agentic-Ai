@@ -94,12 +94,24 @@ class User(BaseModel):
     oauth_provider: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,
-        comment="OAuth provider (github, google, microsoft)",
+        comment="Primary OAuth provider (github, google, microsoft)",
     )
     oauth_id: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
-        comment="OAuth provider user ID",
+        comment="Primary OAuth provider user ID",
+    )
+    google_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        unique=True,
+        comment="Google OAuth user ID",
+    )
+    github_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        unique=True,
+        comment="GitHub OAuth user ID",
     )
     last_login_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

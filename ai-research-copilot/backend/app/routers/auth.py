@@ -1,12 +1,15 @@
 """Authentication router handling login, registration, token management, and user info."""
 
+import logging
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.database.session import get_db_session
 from app.dependencies.auth import get_current_user_from_token
 from app.models.user import User
@@ -18,6 +21,9 @@ from app.schemas.auth import (
     TokenResponse,
 )
 from app.services.auth_service import AuthService
+from app.services.oauth_service import OAuthService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -119,3 +125,108 @@ async def get_current_user(
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         "updated_at": current_user.updated_at.isoformat() if current_user.updated_at else None,
     }
+
+
+# ==================== OAuth Endpoints ====================
+
+
+@router.get("/google/login")
+async def google_login() -> RedirectResponse:
+    """Initiate Google OAuth login flow.
+
+    Generates a state token for CSRF protection and redirects
+    the user to Google's authorization page.
+    """
+    if not settings.oauth.google_client_id:
+        return RedirectResponse(
+            url=f"{settings.oauth.frontend_url}/login?error=oauth_disabled"
+        )
+
+    state = OAuthService.generate_state("google")
+    auth_url = OAuthService.get_google_auth_url(state)
+    return RedirectResponse(url=auth_url)
+
+
+@router.get("/google/callback")
+async def google_callback(
+    code: str = Query(..., description="Authorization code from Google"),
+    state: str = Query(..., description="State parameter for CSRF protection"),
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> RedirectResponse:
+    """Handle Google OAuth callback.
+
+    Exchanges the authorization code for tokens, retrieves user info,
+    and creates or links the user account. Redirects to frontend
+    with tokens in URL fragment.
+    """
+    try:
+        OAuthService.verify_state(state)
+        oauth_service = OAuthService(db)
+        user_info = await oauth_service.exchange_google_code(code)
+        token_response = await oauth_service.authenticate_oauth_user(user_info, "google")
+
+        redirect_url = (
+            f"{settings.oauth.frontend_url}/auth/callback"
+            f"#access_token={token_response.access_token}"
+            f"&refresh_token={token_response.refresh_token}"
+            f"&token_type={token_response.token_type}"
+            f"&expires_in={token_response.expires_in}"
+        )
+        return RedirectResponse(url=redirect_url)
+
+    except Exception as e:
+        logger.exception("Google OAuth callback failed")
+        return RedirectResponse(
+            url=f"{settings.oauth.frontend_url}/login?error=oauth_failed"
+        )
+
+
+@router.get("/github/login")
+async def github_login() -> RedirectResponse:
+    """Initiate GitHub OAuth login flow.
+
+    Generates a state token for CSRF protection and redirects
+    the user to GitHub's authorization page.
+    """
+    if not settings.oauth.github_client_id:
+        return RedirectResponse(
+            url=f"{settings.oauth.frontend_url}/login?error=oauth_disabled"
+        )
+
+    state = OAuthService.generate_state("github")
+    auth_url = OAuthService.get_github_auth_url(state)
+    return RedirectResponse(url=auth_url)
+
+
+@router.get("/github/callback")
+async def github_callback(
+    code: str = Query(..., description="Authorization code from GitHub"),
+    state: str = Query(..., description="State parameter for CSRF protection"),
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> RedirectResponse:
+    """Handle GitHub OAuth callback.
+
+    Exchanges the authorization code for tokens, retrieves user info,
+    and creates or links the user account. Redirects to frontend
+    with tokens in URL fragment.
+    """
+    try:
+        OAuthService.verify_state(state)
+        oauth_service = OAuthService(db)
+        user_info = await oauth_service.exchange_github_code(code)
+        token_response = await oauth_service.authenticate_oauth_user(user_info, "github")
+
+        redirect_url = (
+            f"{settings.oauth.frontend_url}/auth/callback"
+            f"#access_token={token_response.access_token}"
+            f"&refresh_token={token_response.refresh_token}"
+            f"&token_type={token_response.token_type}"
+            f"&expires_in={token_response.expires_in}"
+        )
+        return RedirectResponse(url=redirect_url)
+
+    except Exception as e:
+        logger.exception("GitHub OAuth callback failed")
+        return RedirectResponse(
+            url=f"{settings.oauth.frontend_url}/login?error=oauth_failed"
+        )
