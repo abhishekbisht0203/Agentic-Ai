@@ -5,18 +5,17 @@ Manages OAuth state verification, token exchange, user info retrieval,
 and user creation/linking for OAuth providers.
 """
 
-import base64
 import hashlib
+import json
 import logging
 import secrets
-import uuid
 from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import AuthenticationError, ValidationError
+from app.core.exceptions import AuthenticationError
 from app.core.security.auth import create_access_token, create_refresh_token
 from app.models.user import User, UserSession
 from app.repositories.user import UserRepository
@@ -24,8 +23,6 @@ from app.schemas.auth import TokenResponse
 
 logger = logging.getLogger(__name__)
 
-# In-memory state store for OAuth (production should use Redis)
-_oauth_states: dict[str, dict] = {}
 STATE_EXPIRY_MINUTES = 10
 
 
@@ -44,21 +41,39 @@ class OAuthService:
             provider: The OAuth provider name (google, github).
 
         Returns:
-            Base64-encoded state token.
+            State token hash.
         """
         state_data = secrets.token_urlsafe(32)
         state_hash = hashlib.sha256(state_data.encode()).hexdigest()
 
-        _oauth_states[state_hash] = {
+        state_payload = {
             "provider": provider,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "used": False,
         }
 
+        try:
+            from app.cache.redis.cache import RedisCache
+            if RedisCache.is_connected:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                loop.create_task(
+                    RedisCache.set(
+                        f"oauth_state:{state_hash}",
+                        json.dumps(state_payload),
+                        ex=STATE_EXPIRY_MINUTES * 60,
+                    )
+                )
+                return state_hash
+        except Exception:
+            pass
+
+        # Fallback: store in database (for single-worker setups)
+        _oauth_states_local[state_hash] = state_payload
         return state_hash
 
     @staticmethod
-    def verify_state(state: str) -> str:
+    async def verify_state(state: str) -> str:
         """Verify and consume an OAuth state token.
 
         Args:
@@ -70,22 +85,38 @@ class OAuthService:
         Raises:
             AuthenticationError: If state is invalid, expired, or already used.
         """
-        if state not in _oauth_states:
+        state_data = None
+
+        # Try Redis first
+        try:
+            from app.cache.redis.cache import RedisCache
+            if RedisCache.is_connected:
+                raw = await RedisCache.get(f"oauth_state:{state}")
+                if raw:
+                    state_data = json.loads(raw)
+                    await RedisCache.delete(f"oauth_state:{state}")
+        except Exception:
+            pass
+
+        # Fallback to local storage
+        if state_data is None and state in _oauth_states_local:
+            state_data = _oauth_states_local.pop(state)
+
+        if state_data is None:
             raise AuthenticationError(message="Invalid OAuth state")
 
-        state_data = _oauth_states[state]
-
         if state_data["used"]:
-            del _oauth_states[state]
             raise AuthenticationError(message="OAuth state already used")
 
         created_at = datetime.fromisoformat(state_data["created_at"])
         if datetime.now(timezone.utc) - created_at > timedelta(minutes=STATE_EXPIRY_MINUTES):
-            del _oauth_states[state]
             raise AuthenticationError(message="OAuth state expired")
 
-        state_data["used"] = True
         return state_data["provider"]
+
+
+# Fallback local storage for single-worker setups
+_oauth_states_local: dict[str, dict] = {}
 
     @staticmethod
     def get_google_auth_url(state: str) -> str:
