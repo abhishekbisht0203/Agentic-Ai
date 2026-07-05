@@ -37,5 +37,20 @@ services:
         value: 2
       - key: ENCRYPTION_KEY
         generateValue: true
+      # OAuth redirect URLs (CRITICAL for production OAuth)
+      - key: FRONTEND_URL
+        value: "https://abryx-ai.vercel.app"
+      - key: BACKEND_URL
+        value: "https://agentic-ai-f27z.onrender.com"
+      # Google OAuth
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # GitHub OAuth
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
     healthCheckPath: /health
     autoDeploy: true
