@@ -69,6 +69,50 @@ export const chatApi = {
     return response.data;
   },
 
+  sendMessageStream: async function* (data: ChatRequest) {
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+
+    const response = await fetch(`${API_BASE}/chat/send-stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("No response body");
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const parsed = JSON.parse(line.slice(6));
+            yield parsed;
+          } catch {
+            // skip malformed lines
+          }
+        }
+      }
+    }
+  },
+
   bookmarkConversation: async (data: {
     conversation_id: string;
     note?: string;

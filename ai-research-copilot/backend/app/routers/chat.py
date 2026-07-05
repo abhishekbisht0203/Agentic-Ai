@@ -1,8 +1,10 @@
 """Chat and conversation API routes."""
 
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db_session
@@ -278,4 +280,83 @@ async def send_chat(
         conversation_id=conv_id,
         message=assistant_message,
         citations=[],
+    )
+
+
+@router.post(
+    "/send-stream",
+    summary="Send a chat message and stream the AI response",
+)
+async def send_chat_stream(
+    data: ChatRequest,
+    current_user: User = Depends(get_current_user_from_token),
+    chat_service: ChatService = Depends(_get_chat_service),
+) -> StreamingResponse:
+    """Send a user message and stream the AI response token by token."""
+    from app.llms.factory import LLMFactory
+    from app.llms.chains.conversation import ConversationChain, ChainConfig
+    from app.llms.prompts.templates import get_prompt
+
+    conv_id = data.conversation_id
+    if conv_id is None:
+        from app.schemas.chat import ConversationCreate
+
+        new_conv = await chat_service.create_conversation(
+            user_id=current_user.id,
+            data=ConversationCreate(
+                agent_type=data.agent_type,
+                knowledge_base_id=data.knowledge_base_id,
+            ),
+        )
+        conv_id = new_conv.id
+
+    await chat_service.add_message(
+        conv_id=conv_id,
+        user_id=current_user.id,
+        data=MessageCreate(content=data.message, role="user"),
+    )
+
+    agent_type = data.agent_type or "research"
+    system_prompt = get_prompt(agent_type)
+
+    factory = LLMFactory(default_provider="openai")
+    provider = factory.get_provider("openai")
+
+    chain_config = ChainConfig(
+        system_prompt=system_prompt,
+        temperature=0.7,
+        max_tokens=4096,
+        model=data.model,
+    )
+    chain = ConversationChain(llm_provider=provider, config=chain_config)
+
+    async def event_generator():
+        full_response = []
+        try:
+            async for chunk in chain.predict_stream(
+                user_input=data.message,
+                conversation_id=conv_id,
+            ):
+                full_response.append(chunk)
+                yield f"data: {json.dumps({'content': chunk, 'done': False})}\n\n"
+
+            assistant_content = "".join(full_response)
+            await chat_service.add_message(
+                conv_id=conv_id,
+                user_id=current_user.id,
+                data=MessageCreate(content=assistant_content, role="assistant"),
+            )
+
+            yield f"data: {json.dumps({'content': '', 'done': True, 'conversation_id': str(conv_id)})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
