@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model StripeCustomer {
+  id               String         @id @default(cuid())
+  userId           String         @unique
+  stripeCustomerId String         @unique @map("stripe_customer_id")
+  email            String?
+  name             String?
+  country          String?
+  currency         String?        @default("usd")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  subscriptions    Subscription[]
+  invoices         Invoice[]
+  payments         Payment[]
+  usageRecords     UsageRecord[]
+  billingHistory   BillingHistory[]
+
+  @@map("stripe_customers")
+}
+
+model Plan {
+  id              String      @id @default(cuid())
+  stripeProductId String      @unique @map("stripe_product_id")
+  name            String
+  slug            String      @unique
+  description     String?
+  isPublic        Boolean     @default(true) @map("is_public")
+  features        Json?
+  limits          Json?
+  sortOrder       Int         @default(0) @map("sort_order")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  prices          PlanPrice[]
+  subscriptions   Subscription[]
+
+  @@map("plans")
+}
+
+model PlanPrice {
+  id              String   @id @default(cuid())
+  planId          String   @map("plan_id")
+  stripePriceId   String   @unique @map("stripe_price_id")
+  stripeProductId String   @map("stripe_product_id")
+  currency        String
+  amount          Int
+  interval        String
+  intervalCount   Int      @default(1) @map("interval_count")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  plan            Plan     @relation(fields: [planId], references: [id])
+  subscriptions   Subscription[]
+
+  @@unique([planId, currency, interval])
+  @@map("plan_prices")
+}
+
+model Subscription {
+  id                    String    @id @default(cuid())
+  stripeSubscriptionId  String    @unique @map("stripe_subscription_id")
+  stripeCustomerId      String    @map("stripe_customer_id")
+  stripePriceId         String    @map("stripe_price_id")
+  planId                String    @map("plan_id")
+  planPriceId           String    @map("plan_price_id")
+  status                String
+  interval              String
+  currency              String
+  amount                Int
+  currentPeriodStart    DateTime  @map("current_period_start")
+  currentPeriodEnd      DateTime  @map("current_period_end")
+  cancelAtPeriodEnd     Boolean   @default(false) @map("cancel_at_period_end")
+  canceledAt            DateTime? @map("canceled_at")
+  trialStart            DateTime? @map("trial_start")
+  trialEnd              DateTime? @map("trial_end")
+  metadata              Json?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  customer              StripeCustomer @relation(fields: [stripeCustomerId], references: [stripeCustomerId])
+  plan                  Plan           @relation(fields: [planId], references: [id])
+  planPrice             PlanPrice      @relation(fields: [planPriceId], references: [id])
+  invoices              Invoice[]
+  payments              Payment[]
+  usageRecords          UsageRecord[]
+
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  stripeInvoiceId String        @unique @map("stripe_invoice_id")
+  stripeCustomerId String       @map("stripe_customer_id")
+  subscriptionId  String?       @map("subscription_id")
+  amount          Int
+  currency        String
+  status          String
+  invoiceNumber   String?       @map("invoice_number")
+  invoiceUrl      String?       @map("invoice_url")
+  pdfUrl          String?       @map("pdf_url")
+  periodStart     DateTime?     @map("period_start")
+  periodEnd       DateTime?     @map("period_end")
+  paidAt          DateTime?     @map("paid_at")
+  dueDate         DateTime?     @map("due_date")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  customer        StripeCustomer @relation(fields: [stripeCustomerId], references: [stripeCustomerId])
+  subscription    Subscription?  @relation(fields: [subscriptionId], references: [id])
+  payments        Payment[]
+
+  @@map("invoices")
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  stripePaymentIntentId String?       @unique @map("stripe_payment_intent_id")
+  stripeInvoiceId       String?       @map("stripe_invoice_id")
+  stripeCustomerId      String        @map("stripe_customer_id")
+  subscriptionId        String?       @map("subscription_id")
+  amount                Int
+  currency              String
+  status                String
+  failureReason         String?       @map("failure_reason")
+  refundAmount          Int?          @default(0) @map("refund_amount")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  customer              StripeCustomer @relation(fields: [stripeCustomerId], references: [stripeCustomerId])
+  subscription          Subscription?  @relation(fields: [subscriptionId], references: [id])
+  invoice               Invoice?       @relation(fields: [stripeInvoiceId], references: [stripeInvoiceId])
+
+  @@map("payments")
+}
+
+model UsageRecord {
+  id                String        @id @default(cuid())
+  stripeCustomerId  String        @map("stripe_customer_id")
+  subscriptionId    String?       @map("subscription_id")
+  metric            String
+  quantity          Int           @default(0)
+  periodStart       DateTime      @map("period_start")
+  periodEnd         DateTime      @map("period_end")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  customer          StripeCustomer @relation(fields: [stripeCustomerId], references: [stripeCustomerId])
+  subscription      Subscription?  @relation(fields: [subscriptionId], references: [id])
+
+  @@unique([stripeCustomerId, metric, periodStart])
+  @@map("usage_records")
+}
+
+model BillingHistory {
+  id                String        @id @default(cuid())
+  stripeCustomerId  String        @map("stripe_customer_id")
+  type              String
+  description       String
+  metadata          Json?
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  customer          StripeCustomer @relation(fields: [stripeCustomerId], references: [stripeCustomerId])
+
+  @@map("billing_history")
+}

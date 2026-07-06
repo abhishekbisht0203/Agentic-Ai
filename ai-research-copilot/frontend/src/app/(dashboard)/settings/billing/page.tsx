@@ -1,379 +1,325 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
+import { CreditCard, Settings, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
-  CreditCard,
-  Check,
-  Zap,
-  Building2,
-  MessageSquare,
-  FileText,
-  Database,
-  Bot,
-  ArrowUpRight,
-  ExternalLink,
-  Loader2,
-} from "lucide-react";
+  useSubscription,
+  useCheckout,
+  usePortal,
+  useManageSubscription,
+} from "@/hooks/use-billing";
+import {
+  PricingCards,
+  UsageDisplay,
+  InvoiceTable,
+  BillingHistory,
+  CurrentPlanCard,
+  BillingToggle,
+} from "@/components/billing";
+import { BillingInterval } from "@/types/billing";
+import type { PricingPlan } from "@/types/billing";
+import {
+  PLAN_FEATURES,
+  CURRENCY_CONFIG,
+  getSupportedCurrencies,
+  DEFAULT_CURRENCY,
+} from "@/lib/billing";
+import type { CurrencyCode } from "@/lib/billing";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useAuthStore } from "@/store/auth-store";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-const plans = [
+const PLANS: PricingPlan[] = [
   {
     id: "free",
     name: "Free",
-    price: "$0",
-    period: "forever",
+    slug: "free",
     description: "For individuals getting started with AI research",
-    features: [
-      "50 AI messages per month",
-      "10 documents uploaded",
-      "1 knowledge base",
-      "1 AI agent",
-      "Basic analytics",
-      "Community support",
-    ],
+    stripeProductId: "",
+    features: [...PLAN_FEATURES.free],
     limits: {
       messages: 50,
       documents: 10,
       knowledgeBases: 1,
       agents: 1,
+      storageBytes: 500 * 1024 * 1024,
     },
-    cta: "Current Plan",
-    current: true,
+    prices: [
+      { id: "free-usd-month", stripePriceId: "", currency: "USD", amount: 0, interval: "month" as const, intervalCount: 1, formattedAmount: "$0" },
+      { id: "free-usd-year", stripePriceId: "", currency: "USD", amount: 0, interval: "year" as const, intervalCount: 1, formattedAmount: "$0" },
+      { id: "free-inr-month", stripePriceId: "", currency: "INR", amount: 0, interval: "month" as const, intervalCount: 1, formattedAmount: "\u20B90" },
+      { id: "free-inr-year", stripePriceId: "", currency: "INR", amount: 0, interval: "year" as const, intervalCount: 1, formattedAmount: "\u20B90" },
+      { id: "free-eur-month", stripePriceId: "", currency: "EUR", amount: 0, interval: "month" as const, intervalCount: 1, formattedAmount: "\u20AC0" },
+      { id: "free-eur-year", stripePriceId: "", currency: "EUR", amount: 0, interval: "year" as const, intervalCount: 1, formattedAmount: "\u20AC0" },
+      { id: "free-gbp-month", stripePriceId: "", currency: "GBP", amount: 0, interval: "month" as const, intervalCount: 1, formattedAmount: "\u00A30" },
+      { id: "free-gbp-year", stripePriceId: "", currency: "GBP", amount: 0, interval: "year" as const, intervalCount: 1, formattedAmount: "\u00A30" },
+    ],
   },
   {
     id: "pro",
     name: "Pro",
-    price: "$29",
-    period: "/month",
+    slug: "pro",
     description: "For power users who need more capacity",
-    features: [
-      "1,000 AI messages per month",
-      "100 documents uploaded",
-      "10 knowledge bases",
-      "5 AI agents",
-      "Advanced analytics & reports",
-      "Priority support",
-      "Custom AI models",
-      "API access",
-    ],
+    stripeProductId: "",
+    features: [...PLAN_FEATURES.pro],
     limits: {
       messages: 1000,
       documents: 100,
       knowledgeBases: 10,
       agents: 5,
+      storageBytes: 10 * 1024 * 1024 * 1024,
     },
-    cta: "Upgrade to Pro",
-    current: false,
-    popular: true,
+    prices: [
+      { id: "pro-usd-month", stripePriceId: "", currency: "USD", amount: 2900, interval: "month" as const, intervalCount: 1, formattedAmount: "$29" },
+      { id: "pro-usd-year", stripePriceId: "", currency: "USD", amount: 27800, interval: "year" as const, intervalCount: 1, formattedAmount: "$23.17" },
+      { id: "pro-inr-month", stripePriceId: "", currency: "INR", amount: 199900, interval: "month" as const, intervalCount: 1, formattedAmount: "\u20B91,999" },
+      { id: "pro-inr-year", stripePriceId: "", currency: "INR", amount: 1919000, interval: "year" as const, intervalCount: 1, formattedAmount: "\u20B915,991.67" },
+      { id: "pro-eur-month", stripePriceId: "", currency: "EUR", amount: 2700, interval: "month" as const, intervalCount: 1, formattedAmount: "\u20AC27" },
+      { id: "pro-eur-year", stripePriceId: "", currency: "EUR", amount: 25900, interval: "year" as const, intervalCount: 1, formattedAmount: "\u20AC21.58" },
+      { id: "pro-gbp-month", stripePriceId: "", currency: "GBP", amount: 2300, interval: "month" as const, intervalCount: 1, formattedAmount: "\u00A323" },
+      { id: "pro-gbp-year", stripePriceId: "", currency: "GBP", amount: 22100, interval: "year" as const, intervalCount: 1, formattedAmount: "\u00A318.42" },
+    ],
   },
   {
     id: "enterprise",
     name: "Enterprise",
-    price: "$99",
-    period: "/month",
+    slug: "enterprise",
     description: "For teams and organizations with advanced needs",
-    features: [
-      "Unlimited AI messages",
-      "Unlimited documents",
-      "Unlimited knowledge bases",
-      "Unlimited AI agents",
-      "Custom analytics dashboards",
-      "Dedicated support",
-      "Custom AI models",
-      "Full API access",
-      "SSO & team management",
-      "SLA guarantee",
-    ],
+    stripeProductId: "",
+    features: [...PLAN_FEATURES.enterprise],
     limits: {
-      messages: Infinity,
-      documents: Infinity,
-      knowledgeBases: Infinity,
-      agents: Infinity,
+      messages: -1,
+      documents: -1,
+      knowledgeBases: -1,
+      agents: -1,
+      storageBytes: -1,
     },
-    cta: "Upgrade to Enterprise",
-    current: false,
-  },
-];
-
-const mockUsage = {
-  messages: { used: 23, total: 50 },
-  documents: { used: 4, total: 10 },
-  knowledgeBases: { used: 1, total: 1 },
-  agents: { used: 1, total: 1 },
-};
-
-const mockInvoices = [
-  {
-    id: "inv_001",
-    date: "2025-01-01",
-    amount: "$0.00",
-    status: "paid",
-    description: "Free Plan - January 2025",
+    prices: [
+      { id: "ent-usd-month", stripePriceId: "", currency: "USD", amount: 9900, interval: "month" as const, intervalCount: 1, formattedAmount: "$99" },
+      { id: "ent-usd-year", stripePriceId: "", currency: "USD", amount: 95000, interval: "year" as const, intervalCount: 1, formattedAmount: "$79.17" },
+      { id: "ent-inr-month", stripePriceId: "", currency: "INR", amount: 799900, interval: "month" as const, intervalCount: 1, formattedAmount: "\u20B97,999" },
+      { id: "ent-inr-year", stripePriceId: "", currency: "INR", amount: 7679000, interval: "year" as const, intervalCount: 1, formattedAmount: "\u20B963,991.67" },
+      { id: "ent-eur-month", stripePriceId: "", currency: "EUR", amount: 9200, interval: "month" as const, intervalCount: 1, formattedAmount: "\u20AC92" },
+      { id: "ent-eur-year", stripePriceId: "", currency: "EUR", amount: 88300, interval: "year" as const, intervalCount: 1, formattedAmount: "\u20AC73.58" },
+      { id: "ent-gbp-month", stripePriceId: "", currency: "GBP", amount: 7900, interval: "month" as const, intervalCount: 1, formattedAmount: "\u00A379" },
+      { id: "ent-gbp-year", stripePriceId: "", currency: "GBP", amount: 75800, interval: "year" as const, intervalCount: 1, formattedAmount: "\u00A363.17" },
+    ],
   },
 ];
 
 export default function BillingPage() {
-  const { user } = useAuthStore();
-  const [isUpgrading, setIsUpgrading] = React.useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const [interval, setInterval] = React.useState<BillingInterval>("month");
+  const [currency, setCurrency] = React.useState<CurrencyCode>(DEFAULT_CURRENCY);
+  const [cancelDialogOpen, setCancelDialogOpen] = React.useState(false);
+  const [resumeDialogOpen, setResumeDialogOpen] = React.useState(false);
 
-  const currentPlan = plans.find((p) => p.current) || plans[0];
+  const { data: billingData, isLoading } = useSubscription();
+  const { createCheckoutSession, isRedirecting } = useCheckout();
+  const { createPortalSession } = usePortal();
+  const manageMutation = useManageSubscription();
 
-  const usageStats = [
-    {
-      label: "AI Messages",
-      used: mockUsage.messages.used,
-      total: mockUsage.messages.total,
-      icon: MessageSquare,
+  const success = searchParams.get("success");
+  const canceled = searchParams.get("canceled");
+
+  React.useEffect(() => {
+    if (success === "true") {
+      toast.success("Payment successful! Your subscription is now active.");
+    }
+    if (canceled === "true") {
+      toast.info("Checkout was canceled.");
+    }
+  }, [success, canceled]);
+
+  const currentPlanSlug = billingData?.subscription?.plan?.slug || "free";
+  const currentPrice =
+    billingData?.subscription?.amount || 0;
+
+  const handleSelectPlan = React.useCallback(
+    (plan: PricingPlan, priceId: string) => {
+      createCheckoutSession({
+        priceId,
+        currency,
+        interval,
+      });
     },
-    {
-      label: "Documents",
-      used: mockUsage.documents.used,
-      total: mockUsage.documents.total,
-      icon: FileText,
-    },
-    {
-      label: "Knowledge Bases",
-      used: mockUsage.knowledgeBases.used,
-      total: mockUsage.knowledgeBases.total,
-      icon: Database,
-    },
-    {
-      label: "AI Agents",
-      used: mockUsage.agents.used,
-      total: mockUsage.agents.total,
-      icon: Bot,
-    },
-  ];
+    [createCheckoutSession, currency, interval]
+  );
 
-  const handleUpgrade = (planId: string) => {
-    setIsUpgrading(planId);
-    setTimeout(() => {
-      setIsUpgrading(null);
-      alert(
-        `Upgrade to ${planId} will redirect to payment. This is a demo.`
-      );
-    }, 1500);
-  };
+  const handleCancelSubscription = React.useCallback(() => {
+    manageMutation.mutate("cancel", {
+      onSuccess: () => setCancelDialogOpen(false),
+    });
+  }, [manageMutation]);
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Billing</h1>
-        <p className="text-muted-foreground">
-          Manage your subscription and view usage
-        </p>
-      </div>
+  const handleResumeSubscription = React.useCallback(() => {
+    manageMutation.mutate("resume", {
+      onSuccess: () => setResumeDialogOpen(false),
+    });
+  }, [manageMutation]);
 
-      {/* Current Plan Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Current Plan
-              </CardTitle>
-              <CardDescription>
-                Your current subscription plan
-              </CardDescription>
-            </div>
-            <Badge variant="secondary" className="text-sm">
-              {currentPlan.name}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-baseline gap-1 mb-4">
-            <span className="text-3xl font-bold">{currentPlan.price}</span>
-            <span className="text-muted-foreground">
-              {currentPlan.period}
-            </span>
-          </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            {currentPlan.description}
-          </p>
-          <Button variant="outline" disabled>
-            {currentPlan.cta}
-          </Button>
-        </CardContent>
-      </Card>
+  const supportedCurrencies = getSupportedCurrencies();
 
-      {/* Usage */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Usage This Month</CardTitle>
-          <CardDescription>
-            Track your resource consumption
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-2">
-            {usageStats.map((stat) => {
-              const percentage =
-                stat.total === Infinity
-                  ? 0
-                  : Math.round((stat.used / stat.total) * 100);
-              return (
-                <div key={stat.label} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <stat.icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">
-                        {stat.label}
-                      </span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      {stat.used} / {stat.total === Infinity ? "∞" : stat.total}
-                    </span>
-                  </div>
-                  <Progress
-                    value={percentage}
-                    className="h-2"
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Plan Comparison */}
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Available Plans</h2>
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-4 w-64 mt-2" />
+        </div>
+        <Skeleton className="h-48 w-full" />
         <div className="grid gap-6 md:grid-cols-3">
-          {plans.map((plan) => (
-            <Card
-              key={plan.id}
-              className={`relative ${
-                plan.popular
-                  ? "border-primary shadow-md"
-                  : ""
-              }`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="px-3">
-                    <Zap className="mr-1 h-3 w-3" />
-                    Most Popular
-                  </Badge>
-                </div>
-              )}
-              <CardHeader className="text-center pt-8">
-                <CardTitle>{plan.name}</CardTitle>
-                <div className="flex items-baseline justify-center gap-1 mt-2">
-                  <span className="text-3xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm">
-                    {plan.period}
-                  </span>
-                </div>
-                <CardDescription className="mt-2">
-                  {plan.description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Separator />
-                <ul className="space-y-2">
-                  {plan.features.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-start gap-2 text-sm"
-                    >
-                      <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full mt-4"
-                  variant={plan.current ? "outline" : "default"}
-                  disabled={plan.current || isUpgrading !== null}
-                  onClick={() => handleUpgrade(plan.id)}
-                >
-                  {isUpgrading === plan.id ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : plan.current ? null : (
-                    <ArrowUpRight className="mr-2 h-4 w-4" />
-                  )}
-                  {isUpgrading === plan.id
-                    ? "Upgrading..."
-                    : plan.cta}
-                </Button>
-              </CardContent>
-            </Card>
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-96" />
           ))}
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <CreditCard className="h-6 w-6" />
+            Billing & Subscription
+          </h1>
+          <p className="text-muted-foreground">
+            Manage your subscription, usage, and payment methods
+          </p>
+        </div>
+      </div>
+
+      {/* Current Plan */}
+      <CurrentPlanCard
+        subscription={billingData?.subscription || null}
+        currency={currency}
+        onManageBilling={createPortalSession}
+        onCancelSubscription={() => setCancelDialogOpen(true)}
+        onResumeSubscription={() => setResumeDialogOpen(true)}
+        isManaging={manageMutation.isPending}
+      />
+
+      {/* Usage */}
+      {billingData?.usage && billingData.usage.length > 0 && (
+        <UsageDisplay usage={billingData.usage} />
+      )}
+
+      {/* Plan Selection */}
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold">Choose a Plan</h2>
+          <div className="flex items-center gap-4">
+            <Select
+              value={currency}
+              onValueChange={(v) => setCurrency(v as CurrencyCode)}
+            >
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {supportedCurrencies.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {CURRENCY_CONFIG[c].symbol} {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <BillingToggle interval={interval} onChange={setInterval} />
+          </div>
+        </div>
+
+        <PricingCards
+          plans={PLANS}
+          currentPlanSlug={currentPlanSlug}
+          currency={currency}
+          interval={interval}
+          onSelectPlan={handleSelectPlan}
+          isLoading={isRedirecting}
+        />
+      </div>
+
+      {/* Invoices */}
+      {billingData?.invoices && (
+        <InvoiceTable invoices={billingData.invoices} currency={currency} />
+      )}
 
       {/* Billing History */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Billing History</CardTitle>
-              <CardDescription>
-                View your past invoices
-              </CardDescription>
-            </div>
-            <Button variant="outline" size="sm">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Manage Billing
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mockInvoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell>
-                    {new Date(invoice.date).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>{invoice.description}</TableCell>
-                  <TableCell className="font-medium">
-                    {invoice.amount}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        invoice.status === "paid" ? "default" : "secondary"
-                      }
-                    >
-                      {invoice.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {billingData?.billingHistory && (
+        <BillingHistory history={billingData.billingHistory} />
+      )}
+
+      {/* Cancel Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Subscription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your subscription will remain active until the end of the current
+              billing period. After that, you will be downgraded to the Free
+              plan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelSubscription}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {manageMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Cancel Subscription
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Resume Dialog */}
+      <AlertDialog open={resumeDialogOpen} onOpenChange={setResumeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resume Subscription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your subscription will continue and you will not be downgraded.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Don't Resume</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResumeSubscription}>
+              {manageMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Resume Subscription
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

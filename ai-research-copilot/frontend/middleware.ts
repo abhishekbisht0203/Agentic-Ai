@@ -20,6 +20,21 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow webhook routes to pass through (Stripe needs raw body)
+  if (pathname.startsWith("/api/webhooks")) {
+    return NextResponse.next();
+  }
+
+  // Allow API billing routes that handle their own auth
+  if (pathname.startsWith("/api/billing")) {
+    return NextResponse.next();
+  }
+
+  // Allow public pricing page
+  if (pathname.startsWith("/pricing")) {
+    return NextResponse.next();
+  }
+
   if (isProtectedRoute && !token) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

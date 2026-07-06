@@ -26,6 +26,7 @@ export const NAV_ITEMS = {
   ],
   admin: [
     { label: "Admin Dashboard", href: "/admin", icon: "Shield" },
+    { label: "Billing Admin", href: "/admin/billing", icon: "DollarSign" },
   ],
 } as const;
 

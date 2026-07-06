@@ -4,6 +4,7 @@ export * from "./document";
 export * from "./agent";
 export * from "./workflow";
 export * from "./analytics";
+export * from "./billing";
 
 export interface ApiError {
   error: {
