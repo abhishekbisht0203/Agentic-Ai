@@ -2,6 +2,13 @@
 Database session management.
 
 Provides async database session factory and dependency injection.
+
+Session lifecycle contract:
+- get_db_session yields exactly one AsyncSession per request.
+- The session is committed after the endpoint returns (or rolled back on error).
+- The session is closed exactly once by the async context manager.
+- Streaming endpoints MUST NOT use the request session after the response starts.
+  They must create independent sessions via async_session_factory().
 """
 
 import logging
@@ -34,7 +41,12 @@ async_session_factory = async_sessionmaker(
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Get an async database session.
+    Get an async database session for a single request.
+
+    Yields exactly one session.  The session is committed after the
+    endpoint returns successfully, or rolled back on exception.
+    Closing is handled by the ``async with`` context manager — no
+    manual close is needed.
 
     Yields:
         AsyncSession: Database session for request handling.
@@ -46,8 +58,6 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
-        finally:
-            await session.close()
 
 
 async def _ensure_schema(conn) -> None:
