@@ -512,11 +512,16 @@ async def send_chat_stream(
         if not client_disconnected and full_response:
             assistant_content = "".join(full_response)
             try:
-                await chat_service.add_message(
-                    conv_id=conv_id,
-                    user_id=current_user.id,
-                    data=MessageCreate(content=assistant_content, role="assistant"),
-                )
+                # Create a fresh DB session — the request-scoped session is already
+                # closed by the time the stream finishes.
+                from app.database.session import async_session_factory
+                async with async_session_factory() as stream_db:
+                    stream_chat_service = ChatService(stream_db)
+                    await stream_chat_service.add_message(
+                        conv_id=conv_id,
+                        user_id=current_user.id,
+                        data=MessageCreate(content=assistant_content, role="assistant"),
+                    )
                 yield f"data: {json.dumps({'content': '', 'done': True, 'conversation_id': str(conv_id)})}\n\n"
             except Exception as e:
                 logger.error("Failed to persist assistant message: %s", e)
