@@ -30,13 +30,31 @@ logger = logging.getLogger(__name__)
 
 _start_time: float = 0.0
 
-# CORS headers to include on ALL responses (including errors)
-_CORS_HEADERS: dict[str, str] = {
-    "Access-Control-Allow-Origin": "http://localhost:3000",
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
-}
+
+def _get_cors_headers(request_origin: str | None) -> dict[str, str]:
+    """Build CORS response headers for the given request origin.
+
+    Returns empty dict if origin is not in the allowed list.
+    """
+    if request_origin is None:
+        return {}
+    allowed = set(settings.cors_origins)
+    # Allow any subdomain of vercel.app for preview deployments
+    if request_origin.endswith(".vercel.app"):
+        return {
+            "Access-Control-Allow-Origin": request_origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+        }
+    if request_origin in allowed:
+        return {
+            "Access-Control-Allow-Origin": request_origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+        }
+    return {}
 
 
 @asynccontextmanager
@@ -97,7 +115,12 @@ def create_application() -> FastAPI:
     if is_production:
         app.add_middleware(
             TrustedHostMiddleware,
-            allowed_hosts=["*.airesearchcopilot.com", "airesearchcopilot.com"],
+            allowed_hosts=[
+                "*.airesearchcopilot.com",
+                "airesearchcopilot.com",
+                "*.vercel.app",  # Vercel preview deployments
+                "abryx-ai.vercel.app",  # Production frontend
+            ],
         )
 
     # CORS middleware MUST be added first (outermost) so it wraps all responses
@@ -188,7 +211,7 @@ def register_exception_handlers(app: FastAPI, is_production: bool = False) -> No
     async def airc_error_handler(request: Request, exc: AIRCError) -> JSONResponse:
         """Handle custom AIRC errors with CORS headers."""
         logger.error("AIRC Error: %s - %s", exc.code, exc.message, extra=exc.details)
-        headers = dict(_CORS_HEADERS)
+        headers = _get_cors_headers(request.headers.get("origin"))
         return JSONResponse(
             status_code=400,
             content={
@@ -206,7 +229,7 @@ def register_exception_handlers(app: FastAPI, is_production: bool = False) -> No
         """Handle unexpected errors with CORS headers."""
         logger.exception("Unexpected error occurred: %s", exc)
         detail = str(exc) if not is_production else None
-        headers = dict(_CORS_HEADERS)
+        headers = _get_cors_headers(request.headers.get("origin"))
         return JSONResponse(
             status_code=500,
             content={

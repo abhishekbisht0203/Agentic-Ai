@@ -62,9 +62,10 @@ class ConversationRepository(BaseRepository[Conversation]):
 
         # Lightweight query - only essential columns
         query = (
-            select(Conversation.id, Conversation.title, Conversation.created_at,
-                   Conversation.updated_at, Conversation.message_count,
-                   Conversation.agent_type)
+            select(Conversation.id, Conversation.user_id, Conversation.title,
+                   Conversation.created_at, Conversation.updated_at,
+                   Conversation.message_count, Conversation.agent_type,
+                   Conversation.status)
             .where(
                 Conversation.user_id == user_id,
                 Conversation.is_deleted == False,
@@ -94,10 +95,12 @@ class ConversationRepository(BaseRepository[Conversation]):
         for row in rows:
             conv = Conversation(
                 id=row.id,
+                user_id=row.user_id,
                 title=row.title,
+                status=row.status or "active",
                 created_at=row.created_at,
                 updated_at=row.updated_at,
-                message_count=row.message_count,
+                message_count=row.message_count or 0,
                 agent_type=row.agent_type,
             )
             conversations.append(conv)

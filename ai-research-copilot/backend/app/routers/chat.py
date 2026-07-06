@@ -69,9 +69,25 @@ async def list_conversations(
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ) -> ConversationList:
     """Return a paginated list of conversations owned by the authenticated user."""
-    return await chat_service.list_conversations(
-        user_id=current_user.id, page=page, page_size=page_size
+    logger.info(
+        "Listing conversations for user %s (page=%d, page_size=%d)",
+        current_user.id, page, page_size
     )
+    try:
+        result = await chat_service.list_conversations(
+            user_id=current_user.id, page=page, page_size=page_size
+        )
+        logger.info(
+            "Listed %d conversations for user %s (total=%d)",
+            len(result.items), current_user.id, result.total
+        )
+        return result
+    except Exception as e:
+        logger.exception(
+            "Failed to list conversations for user %s: %s",
+            current_user.id, str(e)
+        )
+        raise
 
 
 @router.get(

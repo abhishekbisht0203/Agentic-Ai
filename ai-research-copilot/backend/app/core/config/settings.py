@@ -221,7 +221,12 @@ class AppSettings(BaseSettings):
 
     # CORS
     cors_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:3000"],
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "https://abryx-ai.vercel.app",
+            "https://*.vercel.app",  # Preview deployments
+        ],
         validation_alias="CORS_ORIGINS"
     )
 
