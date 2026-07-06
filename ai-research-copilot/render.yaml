@@ -28,7 +28,7 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: CORS_ORIGINS
-        value: '["https://abryx-ai.vercel.app"]'
+        value: 'https://abryx-ai.vercel.app,https://*.vercel.app,http://localhost:3000'
       - key: HOST
         value: 0.0.0.0
       - key: PORT

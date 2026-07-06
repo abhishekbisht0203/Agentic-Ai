@@ -99,7 +99,10 @@ class JWTSettings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    secret_key: str = Field(default="your-secret-key-change-in-production")
+    secret_key: str = Field(
+        default="your-secret-key-change-in-production",
+        alias="JWT_SECRET_KEY",
+    )
     algorithm: str = Field(default="HS256")
     expiration_hours: int = Field(default=24)
     refresh_expiration_days: int = Field(default=7)
