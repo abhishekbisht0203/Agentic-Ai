@@ -42,6 +42,68 @@ class ConversationRepository(BaseRepository[Conversation]):
             order_desc=True,
         )
 
+    async def get_by_user_light(
+        self, user_id: uuid.UUID, skip: int = 0, limit: int = 20
+    ) -> tuple[Sequence[Conversation], int]:
+        """Retrieve a lightweight paginated list for sidebar display.
+
+        Only selects columns needed for the conversation list UI,
+        avoiding loading heavy fields like description and knowledge_base_id.
+
+        Args:
+            user_id: The UUID of the owning user.
+            skip: Number of records to skip for pagination.
+            limit: Maximum number of records to return.
+
+        Returns:
+            A tuple of (list of conversations, total count).
+        """
+        from sqlalchemy import func
+
+        # Lightweight query - only essential columns
+        query = (
+            select(Conversation.id, Conversation.title, Conversation.created_at,
+                   Conversation.updated_at, Conversation.message_count,
+                   Conversation.agent_type)
+            .where(
+                Conversation.user_id == user_id,
+                Conversation.is_deleted == False,
+            )
+            .order_by(Conversation.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+
+        count_query = (
+            select(func.count())
+            .select_from(Conversation)
+            .where(
+                Conversation.user_id == user_id,
+                Conversation.is_deleted == False,
+            )
+        )
+
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar() or 0
+
+        result = await self.db.execute(query)
+        rows = result.all()
+
+        # Convert rows to Conversation-like objects for compatibility
+        conversations = []
+        for row in rows:
+            conv = Conversation(
+                id=row.id,
+                title=row.title,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+                message_count=row.message_count,
+                agent_type=row.agent_type,
+            )
+            conversations.append(conv)
+
+        return conversations, total
+
     async def get_with_messages(
         self, conversation_id: uuid.UUID
     ) -> Conversation | None:

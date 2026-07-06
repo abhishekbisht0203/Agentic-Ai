@@ -40,8 +40,30 @@ export function ChatWindow({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  const displayMessages = messages.filter(
-    (msg) => !(msg.role === "assistant" && msg.id.startsWith("temp-") && !msg.content)
+  // Filter messages for display:
+  // - Remove failed assistant messages (they were never persisted)
+  // - Remove empty assistant placeholders (streaming hasn't produced content yet)
+  // - Keep everything else (user messages, completed messages, streaming messages with content)
+  const displayMessages = React.useMemo(
+    () =>
+      messages.filter((msg) => {
+        // Always show user messages.
+        if (msg.role === "user") return true;
+        // Show failed assistant messages only if they have content (error text).
+        if (msg.status === "failed") return !!msg.content;
+        // Remove empty assistant placeholders (status === "streaming" with no content).
+        if (msg.status === "streaming" && !msg.content) return false;
+        return true;
+      }),
+    [messages]
+  );
+
+  // Memoize onSend to prevent child re-renders.
+  const handleSend = React.useCallback(
+    (message: string, attachments?: File[]) => {
+      onSend(message, attachments);
+    },
+    [onSend]
   );
 
   return (
@@ -62,7 +84,7 @@ export function ChatWindow({
                 key={suggestion}
                 variant="outline"
                 className="justify-start h-auto p-4 text-left"
-                onClick={() => onSend(suggestion)}
+                onClick={() => handleSend(suggestion)}
                 disabled={isLoading}
               >
                 <Sparkles className="mr-2 h-4 w-4 shrink-0 text-primary" />
@@ -74,18 +96,36 @@ export function ChatWindow({
       ) : (
         <div ref={containerRef} className="flex-1 overflow-auto">
           <div className="mx-auto max-w-3xl">
-            {displayMessages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                role={message.role as "user" | "assistant"}
-                content={message.content}
-              />
-            ))}
+            {displayMessages.map((message, index) => {
+              const isLastMessage = index === displayMessages.length - 1;
+              // Show typing indicator only for the last assistant message
+              // that is actively streaming and has no content yet.
+              const showTypingIndicator =
+                isLoading &&
+                message.role === "assistant" &&
+                message.status === "streaming" &&
+                isLastMessage &&
+                !message.content;
+
+              return (
+                <ChatMessage
+                  key={message.id}
+                  role={message.role as "user" | "assistant"}
+                  content={message.content}
+                  isLoading={showTypingIndicator}
+                />
+              );
+            })}
             <div ref={messagesEndRef} />
           </div>
         </div>
       )}
-      <ChatInput onSend={onSend} onStop={onStop} isLoading={isLoading} conversationId={conversationId} />
+      <ChatInput
+        onSend={handleSend}
+        onStop={onStop}
+        isLoading={isLoading}
+        conversationId={conversationId}
+      />
     </div>
   );
 }

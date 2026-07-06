@@ -14,7 +14,7 @@ interface ChatMessageProps {
   onRegenerate?: () => void;
 }
 
-export function ChatMessage({
+export const ChatMessage = React.memo(function ChatMessage({
   role,
   content,
   isLoading,
@@ -168,4 +168,4 @@ export function ChatMessage({
       </div>
     </div>
   );
-}
+});

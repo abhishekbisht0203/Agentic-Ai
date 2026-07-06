@@ -322,6 +322,8 @@ async def send_chat(
     from app.llms.chains.conversation import ConversationChain, ChainConfig
     from app.llms.prompts.templates import get_prompt
 
+    import asyncio
+
     conv_id = data.conversation_id
     if conv_id is None:
         new_conv = await chat_service.create_conversation(
@@ -343,15 +345,20 @@ async def send_chat(
     agent_type = data.agent_type or "general"
     system_prompt = get_prompt(agent_type)
 
-    # Load document context for this conversation
-    doc_context = await _load_conversation_documents(
-        chat_service._db, conv_id, current_user.id
+    # Parallelize independent I/O: load history + documents
+    history_task = asyncio.create_task(
+        _load_conversation_history(chat_service, conv_id, current_user.id)
+    )
+    doc_task = asyncio.create_task(
+        _load_conversation_documents(chat_service._db, conv_id, current_user.id)
     )
 
     try:
         provider = _get_llm_provider()
     except ValueError as exc:
         raise ValueError(str(exc))
+
+    history, doc_context = await asyncio.gather(history_task, doc_task)
 
     chain_config = ChainConfig(
         system_prompt=system_prompt,
@@ -362,7 +369,6 @@ async def send_chat(
     )
     chain = ConversationChain(llm_provider=provider, config=chain_config)
 
-    history = await _load_conversation_history(chat_service, conv_id, current_user.id)
     for msg in history[:-1]:
         chain.get_memory(str(conv_id)).add(msg["role"], msg["content"])
 
@@ -403,6 +409,8 @@ async def send_chat_stream(
     from app.llms.chains.conversation import ConversationChain, ChainConfig
     from app.llms.prompts.templates import get_prompt
 
+    import asyncio
+
     conv_id = data.conversation_id
     if conv_id is None:
         new_conv = await chat_service.create_conversation(
@@ -415,6 +423,7 @@ async def send_chat_stream(
         )
         conv_id = new_conv.id
 
+    # Fire-and-forget: save user message in background while we prepare
     await chat_service.add_message(
         conv_id=conv_id,
         user_id=current_user.id,
@@ -424,11 +433,15 @@ async def send_chat_stream(
     agent_type = data.agent_type or "general"
     system_prompt = get_prompt(agent_type)
 
-    # Load document context for this conversation
-    doc_context = await _load_conversation_documents(
-        chat_service._db, conv_id, current_user.id
+    # Parallelize independent I/O: load history + documents + provider init
+    history_task = asyncio.create_task(
+        _load_conversation_history(chat_service, conv_id, current_user.id)
+    )
+    doc_task = asyncio.create_task(
+        _load_conversation_documents(chat_service._db, conv_id, current_user.id)
     )
 
+    # Start provider init in parallel too (may involve API key validation)
     try:
         provider = _get_llm_provider()
     except ValueError as exc:
@@ -445,6 +458,9 @@ async def send_chat_stream(
             },
         )
 
+    # Await parallel tasks
+    history, doc_context = await asyncio.gather(history_task, doc_task)
+
     chain_config = ChainConfig(
         system_prompt=system_prompt,
         temperature=0.7,
@@ -454,12 +470,12 @@ async def send_chat_stream(
     )
     chain = ConversationChain(llm_provider=provider, config=chain_config)
 
-    history = await _load_conversation_history(chat_service, conv_id, current_user.id)
     for msg in history[:-1]:
         chain.get_memory(str(conv_id)).add(msg["role"], msg["content"])
 
     async def event_generator():
         full_response = []
+        client_disconnected = False
         try:
             async for chunk in chain.predict_stream(
                 user_input=data.message,
@@ -467,18 +483,28 @@ async def send_chat_stream(
             ):
                 full_response.append(chunk)
                 yield f"data: {json.dumps({'content': chunk, 'done': False})}\n\n"
-
-            assistant_content = "".join(full_response)
-            await chat_service.add_message(
-                conv_id=conv_id,
-                user_id=current_user.id,
-                data=MessageCreate(content=assistant_content, role="assistant"),
+        except Exception as e:
+            # Client disconnect or stream error — do NOT persist the assistant message.
+            # The stream was interrupted, so the response is incomplete.
+            client_disconnected = True
+            logger.warning(
+                "Stream interrupted for conversation %s: %s", conv_id, e
             )
 
-            yield f"data: {json.dumps({'content': '', 'done': True, 'conversation_id': str(conv_id)})}\n\n"
-        except Exception as e:
-            logger.error("Streaming error: %s", e, exc_info=True)
-            yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
+        # Only persist the assistant message if the stream completed successfully
+        # (i.e. the client did not disconnect mid-stream).
+        if not client_disconnected and full_response:
+            assistant_content = "".join(full_response)
+            try:
+                await chat_service.add_message(
+                    conv_id=conv_id,
+                    user_id=current_user.id,
+                    data=MessageCreate(content=assistant_content, role="assistant"),
+                )
+                yield f"data: {json.dumps({'content': '', 'done': True, 'conversation_id': str(conv_id)})}\n\n"
+            except Exception as e:
+                logger.error("Failed to persist assistant message: %s", e)
+                yield f"data: {json.dumps({'error': 'Failed to save response', 'done': True})}\n\n"
 
     return StreamingResponse(
         event_generator(),

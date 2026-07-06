@@ -15,6 +15,8 @@ export interface ConversationDetail extends Conversation {
   messages: Message[];
 }
 
+export type MessageStatus = "pending" | "streaming" | "completed" | "failed";
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -23,6 +25,8 @@ export interface Message {
   metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+  /** Client-only field tracking the message lifecycle state. */
+  status?: MessageStatus;
 }
 
 export interface ChatRequest {
@@ -68,6 +72,9 @@ export interface ChatState {
   setCurrentConversation: (conversation: ConversationDetail | null) => void;
   addMessage: (message: Message) => void;
   updateMessage: (id: string, content: string) => void;
+  updateMessageStatus: (id: string, status: MessageStatus) => void;
+  replaceOptimisticMessages: (serverMessages: Message[]) => void;
+  removeMessage: (id: string) => void;
   addOptimisticUserMessage: (content: string, conversationId: string) => string;
   addPlaceholderAssistantMessage: (conversationId: string) => string;
   setIsLoading: (isLoading: boolean) => void;

@@ -25,6 +25,8 @@ export function useChat() {
   const setError = useChatStore((s) => s.setError);
   const setSearchQuery = useChatStore((s) => s.setSearchQuery);
   const clearChat = useChatStore((s) => s.clearChat);
+  const updateMessageStatus = useChatStore((s) => s.updateMessageStatus);
+  const replaceOptimisticMessages = useChatStore((s) => s.replaceOptimisticMessages);
 
   const { data: conversationsData, isLoading: isLoadingConversations } = useQuery({
     queryKey: ["conversations"],
@@ -63,6 +65,7 @@ export function useChat() {
       setError(null);
       setIsStreaming(true);
 
+      // Create optimistic messages with proper status tracking.
       const userMsg: Message = {
         id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         conversation_id: convId,
@@ -71,6 +74,7 @@ export function useChat() {
         metadata: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        status: "pending",
       };
 
       const aiMsgId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -82,6 +86,7 @@ export function useChat() {
         metadata: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        status: "streaming",
       };
 
       useChatStore.setState((state) => ({
@@ -94,13 +99,21 @@ export function useChat() {
       abortControllerRef.current = controller;
 
       try {
+        // Mark user message as streaming (backend is processing it).
+        updateMessageStatus(userMsg.id, "streaming");
+
         const stream = chatApi.sendMessageStream(data, controller.signal);
+        let doneEvent: { content?: string; done: boolean; conversation_id?: string } | null = null;
+
         for await (const event of stream) {
           if (event.error) {
             setError(event.error);
+            updateMessageStatus(aiMsgId, "failed");
             useChatStore.setState((state) => ({
               messages: state.messages.map((m) =>
-                m.id === aiMsgId ? { ...m, content: event.error || "An error occurred." } : m
+                m.id === aiMsgId
+                  ? { ...m, content: event.error || "An error occurred.", status: "failed" as const }
+                  : m
               ),
             }));
             break;
@@ -114,18 +127,41 @@ export function useChat() {
             }));
           }
           if (event.done) {
+            doneEvent = event;
             break;
+          }
+        }
+
+        // --- RECONCILIATION PHASE ---
+        // After streaming completes, replace optimistic messages with real DB messages.
+        // This is the key fix: it ensures temp IDs are replaced with real UUIDs,
+        // and any messages not persisted by the backend are handled correctly.
+        if (doneEvent) {
+          try {
+            const conv = await chatApi.getConversation(convId);
+            if (conv?.messages) {
+              replaceOptimisticMessages(conv.messages as Message[]);
+            }
+          } catch {
+            // If fetching fails, at least mark the streamed messages as completed.
+            updateMessageStatus(userMsg.id, "completed");
+            updateMessageStatus(aiMsgId, "completed");
           }
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
-          // User stopped the stream — keep partial content
+          // User stopped the stream — keep partial content but mark as completed.
+          updateMessageStatus(aiMsgId, "completed");
+          updateMessageStatus(userMsg.id, "completed");
         } else {
           const msg = err instanceof Error ? err.message : "Stream failed";
           setError(msg);
+          updateMessageStatus(aiMsgId, "failed");
           useChatStore.setState((state) => ({
             messages: state.messages.map((m) =>
-              m.id === aiMsgId ? { ...m, content: msg } : m
+              m.id === aiMsgId
+                ? { ...m, content: msg, status: "failed" as const }
+                : m
             ),
           }));
         }
@@ -135,7 +171,7 @@ export function useChat() {
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
       }
     },
-    [setError, setIsStreaming, queryClient]
+    [setError, setIsStreaming, queryClient, updateMessageStatus, replaceOptimisticMessages]
   );
 
   const deleteConversation = useMutation({

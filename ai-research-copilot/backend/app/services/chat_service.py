@@ -137,6 +137,8 @@ class ChatService:
     ) -> ConversationList:
         """List all conversations for a user with pagination.
 
+        Uses a lightweight query optimized for sidebar display.
+
         Args:
             user_id: The UUID of the owning user.
             page: 1-indexed page number.
@@ -146,7 +148,7 @@ class ChatService:
             A paginated list of conversations.
         """
         skip = (page - 1) * page_size
-        items, total = await self._conv_repo.get_by_user(
+        items, total = await self._conv_repo.get_by_user_light(
             user_id=user_id,
             skip=skip,
             limit=page_size,
