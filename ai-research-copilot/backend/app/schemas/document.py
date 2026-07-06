@@ -25,6 +25,10 @@ class DocumentCreate(BaseModel):
         default=None,
         description="Knowledge base IDs to associate this document with on creation.",
     )
+    conversation_id: Optional[UUID] = Field(
+        default=None,
+        description="Conversation ID to attach this document to.",
+    )
 
 
 class DocumentUpdate(BaseModel):

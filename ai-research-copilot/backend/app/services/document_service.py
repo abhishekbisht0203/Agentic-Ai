@@ -1,5 +1,6 @@
 """Document management service."""
 
+import io
 import logging
 import uuid
 from typing import BinaryIO
@@ -12,7 +13,7 @@ from app.core.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from app.models.document import Document
+from app.models.document import Document, DocumentChunk
 from app.repositories.document import DocumentRepository
 from app.repositories.knowledge_base import KnowledgeBaseRepository
 from app.schemas.document import (
@@ -27,6 +28,79 @@ from app.schemas.document import (
 from app.storage import LocalStorage, S3Storage
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_text_from_pdf(file_bytes: bytes) -> str:
+    """Extract text content from a PDF file."""
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(io.BytesIO(file_bytes))
+        pages = []
+        for page in reader.pages:
+            text = page.extract_text()
+            if text:
+                pages.append(text.strip())
+        return "\n\n".join(pages)
+    except Exception as exc:
+        logger.warning("PDF extraction failed: %s", exc)
+        return ""
+
+
+def _extract_text_from_docx(file_bytes: bytes) -> str:
+    """Extract text content from a DOCX file."""
+    try:
+        import docx
+        doc = docx.Document(io.BytesIO(file_bytes))
+        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+        return "\n\n".join(paragraphs)
+    except Exception as exc:
+        logger.warning("DOCX extraction failed: %s", exc)
+        return ""
+
+
+def _extract_text_from_plain(file_bytes: bytes, encoding: str = "utf-8") -> str:
+    """Decode plain text from bytes."""
+    try:
+        return file_bytes.decode(encoding)
+    except UnicodeDecodeError:
+        return file_bytes.decode("utf-8", errors="replace")
+
+
+def _extract_text(file_bytes: bytes, mime_type: str, filename: str) -> str:
+    """Route to the appropriate text extractor based on MIME type."""
+    if mime_type == "application/pdf" or filename.lower().endswith(".pdf"):
+        return _extract_text_from_pdf(file_bytes)
+    if mime_type in (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+    ) or filename.lower().endswith((".docx", ".doc")):
+        return _extract_text_from_docx(file_bytes)
+    return _extract_text_from_plain(file_bytes)
+
+
+def _chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[str]:
+    """Split text into overlapping chunks."""
+    if not text or not text.strip():
+        return []
+    chunks: list[str] = []
+    start = 0
+    text_length = len(text)
+    while start < text_length:
+        end = min(start + chunk_size, text_length)
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        if end >= text_length:
+            break
+        start = end - overlap
+        if start < 0:
+            start = 0
+    return chunks
+
+
+def _estimate_token_count(text: str) -> int:
+    """Estimate token count (~4 chars per token)."""
+    return len(text) // 4
 
 
 class DocumentService:
@@ -57,21 +131,10 @@ class DocumentService:
         file_size: int,
         data: DocumentCreate | None = None,
     ) -> DocumentUploadResponse:
-        """Upload a file to storage and persist its metadata.
+        """Upload a file, extract text, create chunks, and persist metadata.
 
-        Args:
-            user_id: ID of the uploading user.
-            file_data: Seekable binary file-like object.
-            filename: Original filename including extension.
-            content_type: MIME type of the file.
-            file_size: Size in bytes.
-            data: Optional additional metadata (name, knowledge_base_ids).
-
-        Raises:
-            DocumentProcessingError: If the storage upload fails.
-
-        Returns:
-            DocumentUploadResponse with the new document ID and status.
+        This performs synchronous document processing so the document is
+        immediately available for LLM context (like ChatGPT/Claude).
         """
         if file_size <= 0:
             raise ValidationError(message="File size must be greater than zero")
@@ -94,6 +157,28 @@ class DocumentService:
                 details={"filename": filename, "error": str(exc)},
             ) from exc
 
+        # Read file bytes for text extraction
+        file_data.seek(0)
+        file_bytes = file_data.read()
+
+        # Extract text synchronously
+        content_text = ""
+        status = "ready"
+        processing_error = None
+        try:
+            content_text = _extract_text(file_bytes, content_type, filename)
+            if not content_text.strip():
+                logger.warning("No text extracted from %s", filename)
+                processing_error = "No text content could be extracted from this file."
+        except Exception as exc:
+            logger.exception("Text extraction failed for %s", filename)
+            processing_error = f"Text extraction failed: {exc}"
+            status = "ready"
+
+        # Create chunks from extracted text
+        chunks_data = _chunk_text(content_text) if content_text.strip() else []
+
+        # Create the document record
         doc = await self.doc_repo.create(
             user_id=user_id,
             name=doc_name,
@@ -101,10 +186,28 @@ class DocumentService:
             mime_type=content_type,
             file_size=file_size,
             storage_path=storage_path,
-            storage_backend="s3",
-            status="processing",
+            storage_backend="local",
+            status=status,
+            content_text=content_text if content_text.strip() else None,
+            chunk_count=len(chunks_data),
+            processing_error=processing_error,
+            conversation_id=data.conversation_id if data else None,
         )
 
+        # Create chunk records in the database
+        for idx, chunk_content in enumerate(chunks_data):
+            chunk = DocumentChunk(
+                document_id=doc.id,
+                chunk_index=idx,
+                content=chunk_content,
+                token_count=_estimate_token_count(chunk_content),
+                chunk_type="recursive",
+            )
+            self.db.add(chunk)
+
+        await self.db.flush()
+
+        # Associate with knowledge bases if requested
         if data and data.knowledge_base_ids:
             for kb_id in data.knowledge_base_ids:
                 kb = await self.kb_repo.get_by_id(kb_id)
@@ -115,9 +218,10 @@ class DocumentService:
             await self.kb_repo.add_documents(doc.id, data.knowledge_base_ids)
 
         logger.info(
-            "Document uploaded: id=%s name=%s user=%s",
+            "Document uploaded and processed: id=%s name=%s chunks=%d user=%s",
             doc.id,
             doc.name,
+            len(chunks_data),
             user_id,
         )
 
@@ -125,21 +229,13 @@ class DocumentService:
             id=doc.id,
             name=doc.name,
             status=doc.status,
-            message="Document uploaded successfully. Processing will begin shortly.",
+            message="Document uploaded and processed successfully.",
         )
 
     async def get_document(
         self, document_id: uuid.UUID, user_id: uuid.UUID
     ) -> DocumentDetail:
-        """Retrieve full details for a single document.
-
-        Args:
-            document_id: UUID of the document.
-            user_id: UUID of the owning user.
-
-        Raises:
-            NotFoundError: If the document does not exist or is not owned by the user.
-        """
+        """Retrieve full details for a single document."""
         doc = await self._get_owned_document(document_id, user_id)
         return DocumentDetail.model_validate(doc)
 
@@ -149,13 +245,7 @@ class DocumentService:
         page: int = 1,
         page_size: int = 20,
     ) -> DocumentList:
-        """Return a paginated list of the user's documents.
-
-        Args:
-            user_id: UUID of the owning user.
-            page: 1-indexed page number.
-            page_size: Number of items per page (max 100).
-        """
+        """Return a paginated list of the user's documents."""
         page_size = min(page_size, 100)
         skip = (page - 1) * page_size
         items, total = await self.doc_repo.get_by_user(user_id, skip, page_size)
@@ -172,17 +262,7 @@ class DocumentService:
         user_id: uuid.UUID,
         data: DocumentUpdate,
     ) -> DocumentResponse:
-        """Update document metadata (name).
-
-        Args:
-            document_id: UUID of the document.
-            user_id: UUID of the owning user.
-            data: Fields to update.
-
-        Raises:
-            NotFoundError: If the document does not exist or is not owned by the user.
-            ValidationError: If the provided name is empty.
-        """
+        """Update document metadata (name)."""
         doc = await self._get_owned_document(document_id, user_id)
 
         update_data = data.model_dump(exclude_unset=True)
@@ -201,19 +281,7 @@ class DocumentService:
     async def delete_document(
         self, document_id: uuid.UUID, user_id: uuid.UUID
     ) -> None:
-        """Delete a document from storage and the database.
-
-        Removes the file from storage first, then soft-deletes the database
-        record. Storage deletion failures are logged but do not block the
-        database deletion.
-
-        Args:
-            document_id: UUID of the document.
-            user_id: UUID of the owning user.
-
-        Raises:
-            NotFoundError: If the document does not exist or is not owned by the user.
-        """
+        """Delete a document from storage and the database."""
         doc = await self._get_owned_document(document_id, user_id)
 
         try:
@@ -231,31 +299,14 @@ class DocumentService:
     async def get_document_chunks(
         self, document_id: uuid.UUID, user_id: uuid.UUID
     ) -> list[DocumentChunkResponse]:
-        """Return all chunks belonging to a document.
-
-        Args:
-            document_id: UUID of the document.
-            user_id: UUID of the owning user.
-
-        Raises:
-            NotFoundError: If the document does not exist or is not owned by the user.
-        """
+        """Return all chunks belonging to a document."""
         doc = await self._get_owned_document(document_id, user_id)
         return [DocumentChunkResponse.model_validate(c) for c in doc.chunks]
 
     async def get_document_content(
         self, document_id: uuid.UUID, user_id: uuid.UUID
     ) -> bytes:
-        """Download the raw file bytes for a document.
-
-        Args:
-            document_id: UUID of the document.
-            user_id: UUID of the owning user.
-
-        Raises:
-            NotFoundError: If the document does not exist or is not owned by the user.
-            DocumentProcessingError: If the file cannot be retrieved from storage.
-        """
+        """Download the raw file bytes for a document."""
         doc = await self._get_owned_document(document_id, user_id)
 
         try:
@@ -274,18 +325,7 @@ class DocumentService:
     async def _get_owned_document(
         self, document_id: uuid.UUID, user_id: uuid.UUID
     ) -> Document:
-        """Fetch a document and verify ownership.
-
-        Args:
-            document_id: UUID of the document.
-            user_id: UUID of the owning user.
-
-        Raises:
-            NotFoundError: If the document is missing or belongs to another user.
-
-        Returns:
-            The validated Document model instance.
-        """
+        """Fetch a document and verify ownership."""
         doc = await self.doc_repo.get_by_id(document_id)
         if not doc or doc.user_id != user_id:
             raise NotFoundError(message="Document not found")

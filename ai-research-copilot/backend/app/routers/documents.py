@@ -4,7 +4,7 @@ import io
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 
@@ -33,8 +33,9 @@ async def upload_document(
     current_user: CurrentUser,
     db: DbSession,
     file: Annotated[UploadFile, File(description="File to upload")],
-    name: Annotated[str | None, Query(description="Optional document name")] = None,
-    knowledge_base_ids: Annotated[str | None, Query(description="Comma-separated knowledge base IDs")] = None,
+    name: Annotated[str | None, Form(description="Optional document name")] = None,
+    knowledge_base_ids: Annotated[str | None, Form(description="Comma-separated knowledge base IDs")] = None,
+    conversation_id: Annotated[str | None, Form(description="Conversation ID to attach document to")] = None,
 ) -> DocumentUploadResponse:
     """Upload a document file for processing."""
     file_data = await file.read()
@@ -42,11 +43,12 @@ async def upload_document(
     file_stream = io.BytesIO(file_data)
 
     data = None
-    if name or knowledge_base_ids:
+    if name or knowledge_base_ids or conversation_id:
         kb_ids = None
         if knowledge_base_ids:
             kb_ids = [uuid.UUID(kid.strip()) for kid in knowledge_base_ids.split(",") if kid.strip()]
-        data = DocumentCreate(name=name, knowledge_base_ids=kb_ids)
+        conv_id = uuid.UUID(conversation_id.strip()) if conversation_id else None
+        data = DocumentCreate(name=name, knowledge_base_ids=kb_ids, conversation_id=conv_id)
 
     service = DocumentService(db)
     return await service.upload_document(

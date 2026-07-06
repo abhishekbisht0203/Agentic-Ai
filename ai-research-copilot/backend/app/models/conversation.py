@@ -75,6 +75,11 @@ class Conversation(BaseModel):
         back_populates="conversation",
         cascade="all, delete-orphan",
     )
+    documents: Mapped[list["Document"]] = relationship(
+        "Document",
+        back_populates="conversation",
+        lazy="selectin",
+    )
     user: Mapped["User"] = relationship(
         "User",
         back_populates="conversations",

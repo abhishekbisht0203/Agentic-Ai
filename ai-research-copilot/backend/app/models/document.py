@@ -79,6 +79,12 @@ class Document(BaseModel):
         nullable=False,
         default=0,
     )
+    conversation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("conversations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # Relationships
     chunks: Mapped[List["DocumentChunk"]] = relationship(
@@ -90,6 +96,11 @@ class Document(BaseModel):
     knowledge_bases: Mapped[List["KnowledgeBase"]] = relationship(
         "KnowledgeBase",
         secondary="knowledge_base_documents",
+        back_populates="documents",
+        lazy="selectin",
+    )
+    conversation: Mapped[Optional["Conversation"]] = relationship(
+        "Conversation",
         back_populates="documents",
         lazy="selectin",
     )

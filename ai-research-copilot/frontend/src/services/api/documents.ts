@@ -11,13 +11,17 @@ export const documentsApi = {
   uploadDocument: async (
     file: File,
     name?: string,
-    knowledgeBaseIds?: string[]
+    knowledgeBaseIds?: string[],
+    conversationId?: string
   ): Promise<DocumentUploadResponse> => {
     const formData = new FormData();
     formData.append("file", file);
     if (name) formData.append("name", name);
     if (knowledgeBaseIds?.length) {
       formData.append("knowledge_base_ids", knowledgeBaseIds.join(","));
+    }
+    if (conversationId) {
+      formData.append("conversation_id", conversationId);
     }
 
     const response = await apiClient.post<DocumentUploadResponse>(

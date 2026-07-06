@@ -250,6 +250,59 @@ async def _load_conversation_history(
     return history
 
 
+async def _load_conversation_documents(
+    db: AsyncSession,
+    conv_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> str:
+    """Load all documents attached to a conversation and build context string.
+
+    Returns a formatted string containing all document content for injection
+    into the LLM system prompt (like ChatGPT/Claude/NotebookLM).
+    """
+    from app.repositories.document import DocumentRepository
+
+    doc_repo = DocumentRepository(db)
+    documents = await doc_repo.get_by_conversation(conv_id, user_id)
+
+    if not documents:
+        return ""
+
+    doc_parts = []
+    for doc in documents:
+        if doc.status != "ready":
+            continue
+        # Prefer content_text (full extracted text), fallback to chunks
+        text_content = doc.content_text
+        if not text_content and doc.chunks:
+            text_content = "\n\n".join(
+                chunk.content for chunk in doc.chunks if chunk.content
+            )
+        if text_content:
+            doc_parts.append(
+                f"--- Document: {doc.name} ({doc.original_filename}) ---\n"
+                f"{text_content}\n"
+                f"--- End of Document: {doc.name} ---"
+            )
+
+    if not doc_parts:
+        return ""
+
+    context = (
+        "\n\nThe user has uploaded the following documents to this conversation. "
+        "Use the content from these documents when answering the user's questions.\n\n"
+        + "\n\n".join(doc_parts)
+    )
+
+    logger.info(
+        "Loaded document context for conversation %s: %d documents, ~%d chars",
+        conv_id,
+        len(doc_parts),
+        len(context),
+    )
+    return context
+
+
 # ------------------------------------------------------------------
 # Chat send (non-streaming)
 # ------------------------------------------------------------------
@@ -290,6 +343,11 @@ async def send_chat(
     agent_type = data.agent_type or "general"
     system_prompt = get_prompt(agent_type)
 
+    # Load document context for this conversation
+    doc_context = await _load_conversation_documents(
+        chat_service._db, conv_id, current_user.id
+    )
+
     try:
         provider = _get_llm_provider()
     except ValueError as exc:
@@ -300,6 +358,7 @@ async def send_chat(
         temperature=0.7,
         max_tokens=4096,
         model=data.model,
+        rag_context=doc_context if doc_context else None,
     )
     chain = ConversationChain(llm_provider=provider, config=chain_config)
 
@@ -365,6 +424,11 @@ async def send_chat_stream(
     agent_type = data.agent_type or "general"
     system_prompt = get_prompt(agent_type)
 
+    # Load document context for this conversation
+    doc_context = await _load_conversation_documents(
+        chat_service._db, conv_id, current_user.id
+    )
+
     try:
         provider = _get_llm_provider()
     except ValueError as exc:
@@ -386,6 +450,7 @@ async def send_chat_stream(
         temperature=0.7,
         max_tokens=4096,
         model=data.model,
+        rag_context=doc_context if doc_context else None,
     )
     chain = ConversationChain(llm_provider=provider, config=chain_config)
 

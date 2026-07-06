@@ -9,10 +9,9 @@ import time
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from app.core.config import settings
@@ -30,6 +29,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 _start_time: float = 0.0
+
+# CORS headers to include on ALL responses (including errors)
+_CORS_HEADERS: dict[str, str] = {
+    "Access-Control-Allow-Origin": "http://localhost:3000",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+}
 
 
 @asynccontextmanager
@@ -93,17 +100,20 @@ def create_application() -> FastAPI:
             allowed_hosts=["*.airesearchcopilot.com", "airesearchcopilot.com"],
         )
 
-    app.add_middleware(LoggingMiddleware)
-    app.add_middleware(RateLimitMiddleware)
-    app.add_middleware(SecurityHeadersMiddleware)
+    # CORS middleware MUST be added first (outermost) so it wraps all responses
+    # including those from exception handlers
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+        allow_headers=["*"],
         expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining"],
     )
+
+    app.add_middleware(LoggingMiddleware)
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     app.include_router(api_router, prefix="/api/v1")
 
@@ -176,8 +186,9 @@ def register_exception_handlers(app: FastAPI, is_production: bool = False) -> No
 
     @app.exception_handler(AIRCError)
     async def airc_error_handler(request: Request, exc: AIRCError) -> JSONResponse:
-        """Handle custom AIRC errors."""
+        """Handle custom AIRC errors with CORS headers."""
         logger.error("AIRC Error: %s - %s", exc.code, exc.message, extra=exc.details)
+        headers = dict(_CORS_HEADERS)
         return JSONResponse(
             status_code=400,
             content={
@@ -187,13 +198,15 @@ def register_exception_handlers(app: FastAPI, is_production: bool = False) -> No
                     "details": exc.details,
                 }
             },
+            headers=headers,
         )
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        """Handle unexpected errors."""
-        logger.exception("Unexpected error occurred")
+        """Handle unexpected errors with CORS headers."""
+        logger.exception("Unexpected error occurred: %s", exc)
         detail = str(exc) if not is_production else None
+        headers = dict(_CORS_HEADERS)
         return JSONResponse(
             status_code=500,
             content={
@@ -203,6 +216,7 @@ def register_exception_handlers(app: FastAPI, is_production: bool = False) -> No
                     **({"details": detail} if detail else {}),
                 }
             },
+            headers=headers,
         )
 
 

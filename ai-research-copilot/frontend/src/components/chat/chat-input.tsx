@@ -17,16 +17,18 @@ interface AttachmentItem {
   id: string;
   file: File;
   preview?: string;
+  uploaded?: boolean;
 }
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, attachments?: File[]) => void;
   isLoading?: boolean;
   disabled?: boolean;
   onStop?: () => void;
+  conversationId?: string;
 }
 
-export function ChatInput({ onSend, isLoading = false, disabled = false, onStop }: ChatInputProps) {
+export function ChatInput({ onSend, isLoading = false, disabled = false, onStop, conversationId }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [showRecordingPreview, setShowRecordingPreview] = useState(false);
@@ -63,16 +65,20 @@ export function ChatInput({ onSend, isLoading = false, disabled = false, onStop 
     resize();
   }, [message, resize]);
 
-  // Handle sending message
-  const handleSend = useCallback(() => {
+  // Upload attachments to backend and send message
+  const handleSend = useCallback(async () => {
     const trimmed = message.trim();
     if (!trimmed || isLoading || disabled) return;
-    onSend(trimmed);
+
+    // Pass files to parent for upload (parent handles conversation creation first)
+    const files = attachments.length > 0 ? attachments.map(a => a.file) : undefined;
+
+    onSend(trimmed, files);
     setMessage("");
     setAttachments([]);
     reset();
     speech.resetTranscript();
-  }, [message, isLoading, disabled, onSend, reset, speech]);
+  }, [message, isLoading, disabled, onSend, reset, speech, attachments]);
 
   // Handle stopping generation
   const handleStop = useCallback(() => {

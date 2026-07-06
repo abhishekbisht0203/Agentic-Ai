@@ -7,6 +7,7 @@ import { useChat } from "@/hooks/use-chat";
 import { ChatHistory } from "@/components/chat/chat-history";
 import { ChatWindow } from "@/components/chat/chat-window";
 import { toast } from "sonner";
+import { documentsApi } from "@/services/api/documents";
 
 export default function ChatPage() {
   const router = useRouter();
@@ -33,7 +34,7 @@ export default function ChatPage() {
     }
   }, [conversationId, getConversation, startNewChat]);
 
-  const handleSend = async (content: string) => {
+  const handleSend = async (content: string, attachments?: File[]) => {
     try {
       let convId = currentConversation?.id;
 
@@ -43,6 +44,18 @@ export default function ChatPage() {
         });
         convId = newConv.id;
         router.replace(`/chat?c=${convId}`);
+      }
+
+      // Upload any pending attachments with the conversation ID
+      if (attachments && attachments.length > 0 && convId) {
+        try {
+          for (const file of attachments) {
+            await documentsApi.uploadDocument(file, file.name, undefined, convId);
+          }
+          toast.success(`${attachments.length} file(s) attached`);
+        } catch (err) {
+          toast.error("Failed to attach some files");
+        }
       }
 
       if (convId) {
