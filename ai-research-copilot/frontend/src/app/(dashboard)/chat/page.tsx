@@ -22,6 +22,7 @@ export default function ChatPage() {
     createConversation,
     getConversation,
     startNewChat,
+    stopStream,
   } = useChat();
 
   React.useEffect(() => {
@@ -76,6 +77,7 @@ export default function ChatPage() {
         <ChatWindow
           messages={messages}
           onSend={handleSend}
+          onStop={stopStream}
           isLoading={isLoading || isStreaming}
           conversationId={currentConversation?.id}
         />

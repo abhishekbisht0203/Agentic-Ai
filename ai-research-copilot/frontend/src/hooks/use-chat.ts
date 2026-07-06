@@ -90,8 +90,11 @@ export function useChat() {
 
       let accumulated = "";
 
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       try {
-        const stream = chatApi.sendMessageStream(data);
+        const stream = chatApi.sendMessageStream(data, controller.signal);
         for await (const event of stream) {
           if (event.error) {
             setError(event.error);
@@ -115,14 +118,19 @@ export function useChat() {
           }
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Stream failed";
-        setError(msg);
-        useChatStore.setState((state) => ({
-          messages: state.messages.map((m) =>
-            m.id === aiMsgId ? { ...m, content: msg } : m
-          ),
-        }));
+        if (err instanceof DOMException && err.name === "AbortError") {
+          // User stopped the stream — keep partial content
+        } else {
+          const msg = err instanceof Error ? err.message : "Stream failed";
+          setError(msg);
+          useChatStore.setState((state) => ({
+            messages: state.messages.map((m) =>
+              m.id === aiMsgId ? { ...m, content: msg } : m
+            ),
+          }));
+        }
       } finally {
+        abortControllerRef.current = null;
         setIsStreaming(false);
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
       }
@@ -157,6 +165,11 @@ export function useChat() {
     clearChat();
   }, [clearChat]);
 
+  const stopStream = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+  }, []);
+
   return {
     conversations: conversationsData?.items ?? [],
     currentConversation,
@@ -172,6 +185,7 @@ export function useChat() {
     deleteConversation,
     getConversation,
     startNewChat,
+    stopStream,
     setIsStreaming,
   };
 }

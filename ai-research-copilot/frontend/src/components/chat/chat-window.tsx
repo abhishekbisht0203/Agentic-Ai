@@ -17,6 +17,7 @@ const suggestions = [
 interface ChatWindowProps {
   messages: Message[];
   onSend: (message: string) => void;
+  onStop?: () => void;
   isLoading?: boolean;
   conversationId?: string;
 }
@@ -24,6 +25,7 @@ interface ChatWindowProps {
 export function ChatWindow({
   messages,
   onSend,
+  onStop,
   isLoading,
   conversationId,
 }: ChatWindowProps) {
@@ -83,7 +85,7 @@ export function ChatWindow({
           </div>
         </div>
       )}
-      <ChatInput onSend={onSend} isLoading={isLoading} />
+      <ChatInput onSend={onSend} onStop={onStop} isLoading={isLoading} />
     </div>
   );
 }

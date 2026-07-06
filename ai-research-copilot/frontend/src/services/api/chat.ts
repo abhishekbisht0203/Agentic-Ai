@@ -69,7 +69,10 @@ export const chatApi = {
     return response.data;
   },
 
-  async *sendMessageStream(data: ChatRequest): AsyncGenerator<
+  async *sendMessageStream(
+    data: ChatRequest,
+    signal?: AbortSignal
+  ): AsyncGenerator<
     { content?: string; done: boolean; conversation_id?: string; error?: string },
     void,
     unknown
@@ -84,6 +87,7 @@ export const chatApi = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(data),
+      signal,
     });
 
     if (!response.ok) {
