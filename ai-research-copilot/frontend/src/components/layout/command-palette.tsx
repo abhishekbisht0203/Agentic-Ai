@@ -7,7 +7,7 @@ import {
   MessageSquare,
   FileText,
   BookOpen,
-  Bot,
+  Brain,
   GitBranch,
   BarChart3,
   Settings,
@@ -53,7 +53,7 @@ export function CommandPalette() {
   const items: CommandItem[] = [
     {
       id: "chat",
-      label: "AI Chat",
+      label: "ARC Chat",
       description: "Start a new conversation",
       icon: MessageSquare,
       action: () => router.push("/chat"),
@@ -79,7 +79,7 @@ export function CommandPalette() {
       id: "agents",
       label: "Agents",
       description: "Configure AI agents",
-      icon: Bot,
+      icon: Brain,
       action: () => router.push("/agents"),
       category: "Navigation",
     },

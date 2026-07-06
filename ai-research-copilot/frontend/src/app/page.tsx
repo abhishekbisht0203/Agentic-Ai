@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  Bot,
+  Brain,
   BookOpen,
   FileText,
   GitBranch,
@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 const features = [
   {
     icon: MessageSquare,
-    title: "AI Chat",
+    title: "ARC Chat",
     description:
       "Conversational AI with streaming, citations, and multi-model support.",
   },
@@ -27,8 +27,8 @@ const features = [
       "Build and query knowledge bases from your documents with RAG.",
   },
   {
-    icon: Bot,
-    title: "AI Agents",
+    icon: Brain,
+    title: "ARC Agents",
     description:
       "Configure and deploy specialized agents for research, analysis, and more.",
   },
@@ -66,9 +66,9 @@ export default function LandingPage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Bot className="h-4 w-4" />
+              <Brain className="h-4 w-4" />
             </div>
-            <span className="text-lg font-bold">AI Research Copilot</span>
+            <span className="text-lg font-bold">ARC</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
             <Link
@@ -113,15 +113,15 @@ export default function LandingPage() {
                 Powered by cutting-edge AI
               </div>
               <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-                Your Enterprise{" "}
+                Meet{" "}
                 <span className="bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
-                  AI Research
-                </span>{" "}
-                Platform
+                  ARC
+                </span>
+                , Your AI Research Copilot
               </h1>
               <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-                Chat with AI, analyze documents, build knowledge bases, and
-                automate research workflows — all in one powerful platform.
+                Chat with ARC, analyze documents, build knowledge bases, and
+                automate research workflows — all in one intelligent platform.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
                 <Button size="lg" asChild>
@@ -192,8 +192,8 @@ export default function LandingPage() {
                 Ready to transform your research?
               </h2>
               <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-                Join hundreds of teams using AI Research Copilot to accelerate
-                their workflows.
+                Join hundreds of teams using ARC to accelerate
+                their research workflows.
               </p>
               <div className="mt-8 flex items-center justify-center gap-4">
                 <Button size="lg" asChild>
@@ -212,8 +212,8 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <Bot className="h-5 w-5" />
-              <span className="font-semibold">AI Research Copilot</span>
+              <Brain className="h-5 w-5" />
+              <span className="font-semibold">ARC - AI Research Copilot</span>
             </div>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -226,7 +226,7 @@ export default function LandingPage() {
               </div>
             </div>
             <p className="text-sm text-muted-foreground">
-              &copy; 2026 AI Research Copilot. All rights reserved.
+              &copy; 2026 ARC - AI Research Copilot. All rights reserved.
             </p>
           </div>
         </div>

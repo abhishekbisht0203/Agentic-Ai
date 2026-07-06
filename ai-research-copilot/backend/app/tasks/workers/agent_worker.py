@@ -46,7 +46,7 @@ def _build_system_prompt(config: dict[str, Any]) -> str:
                 parts.append(f"- {tool}")
 
     parts.append(
-        "\nYou are an AI assistant in the AI Research Copilot system. "
+        "\nYou are ARC, the AI Research Copilot. "
         "Provide accurate, helpful, and well-structured responses."
     )
 
@@ -155,7 +155,7 @@ def execute_agent_task(self, task_id: str, user_id: str) -> dict[str, Any]:
                 "agent_type": "research",
                 "input_data": {"query": "Sample research query"},
                 "model": "gpt-4o",
-                "system_prompt": "You are a research assistant.",
+                "system_prompt": "You are ARC, the AI Research Copilot.",
                 "temperature": 0.7,
                 "max_tokens": 4096,
                 "tools": ["calculator", "web_search"],

@@ -6,7 +6,7 @@ import {
   BookOpen,
   MessageSquare,
   FileText,
-  Bot,
+  Brain,
   GitBranch,
   BarChart3,
   Database,
@@ -47,9 +47,9 @@ const docSections = [
     description: "Quick start guide to get up and running",
     articles: [
       {
-        title: "Introduction to AI Research Copilot",
+        title: "Introduction to ARC",
         content:
-          "AI Research Copilot is an intelligent platform that helps you research, analyze, and manage documents using AI-powered agents. Upload documents, create knowledge bases, chat with AI, and automate complex workflows.",
+          "ARC (AI Research Copilot) is an intelligent platform that helps you research, analyze, and manage documents using AI-powered agents. Upload documents, create knowledge bases, chat with ARC, and automate complex workflows.",
       },
       {
         title: "Creating Your Account",
@@ -59,25 +59,25 @@ const docSections = [
       {
         title: "Navigating the Dashboard",
         content:
-          "The dashboard provides an overview of your activity, including recent chats, document counts, and knowledge base status. Use the sidebar to navigate between different sections: AI Chat, Documents, Knowledge Base, Agents, Workflows, and Analytics.",
+          "The dashboard provides an overview of your activity, including recent chats, document counts, and knowledge base status. Use the sidebar to navigate between different sections: ARC Chat, Documents, Knowledge Base, Agents, Workflows, and Analytics.",
       },
     ],
   },
   {
     id: "ai-chat",
-    title: "AI Chat",
+    title: "ARC Chat",
     icon: MessageSquare,
-    description: "Have intelligent conversations with AI",
+    description: "Have intelligent conversations with ARC",
     articles: [
       {
         title: "Starting a Chat",
         content:
-          "Click on 'AI Chat' in the sidebar to start a new conversation. You can ask questions about your uploaded documents, request summaries, analysis, or general research assistance. The AI uses your knowledge bases for context-aware responses.",
+          "Click on 'ARC Chat' in the sidebar to start a new conversation. You can ask questions about your uploaded documents, request summaries, analysis, or general research assistance. ARC uses your knowledge bases for context-aware responses.",
       },
       {
         title: "Chat with Documents",
         content:
-          "When you have documents uploaded, the AI can answer questions directly from your content. Simply reference a document or ask a question, and the AI will search through your knowledge bases to find relevant information.",
+          "When you have documents uploaded, ARC can answer questions directly from your content. Simply reference a document or ask a question, and ARC will search through your knowledge bases to find relevant information.",
       },
       {
         title: "AI Models",
@@ -134,14 +134,14 @@ const docSections = [
   },
   {
     id: "agents",
-    title: "AI Agents",
-    icon: Bot,
+    title: "ARC Agents",
+    icon: Brain,
     description: "Deploy autonomous AI agents",
     articles: [
       {
         title: "What are AI Agents?",
         content:
-          "AI Agents are autonomous assistants that can perform complex tasks, conduct research, and generate reports. Unlike simple chat, agents can plan multi-step workflows, use tools, and deliver comprehensive results.",
+          "ARC Agents are autonomous assistants that can perform complex tasks, conduct research, and generate reports. Unlike simple chat, agents can plan multi-step workflows, use tools, and deliver comprehensive results.",
       },
       {
         title: "Creating an Agent",
@@ -284,7 +284,7 @@ export default function DocsPage() {
       <div>
         <h1 className="text-2xl font-bold">Documentation</h1>
         <p className="text-muted-foreground">
-          Learn how to use AI Research Copilot
+          Learn how to use ARC
         </p>
       </div>
 

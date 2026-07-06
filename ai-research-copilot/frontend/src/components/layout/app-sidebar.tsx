@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
-  Bot,
+  Brain,
   BookOpen,
   FileText,
   FileBarChart,
@@ -51,7 +51,7 @@ const mainNavItems = [
   { label: "AI Chat", href: "/chat", icon: MessageSquare },
   { label: "Knowledge Base", href: "/knowledge", icon: BookOpen },
   { label: "Documents", href: "/documents", icon: FileText },
-  { label: "Agents", href: "/agents", icon: Bot },
+  { label: "Agents", href: "/agents", icon: Brain },
   { label: "Workflows", href: "/workflows", icon: GitBranch },
 ];
 
@@ -84,12 +84,12 @@ export function AppSidebar() {
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Bot className="size-4" />
+                  <Brain className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">AI Research</span>
+                  <span className="truncate font-semibold">ARC</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    Copilot
+                    AI Research Copilot
                   </span>
                 </div>
               </Link>

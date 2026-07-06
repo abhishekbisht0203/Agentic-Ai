@@ -86,7 +86,7 @@ def create_application() -> FastAPI:
 
     app = FastAPI(
         title=settings.name,
-        description="Enterprise Agentic AI Research Copilot",
+        description="ARC - AI Research Copilot. Intelligent research platform.",
         version=settings.version,
         lifespan=lifespan,
         docs_url=None if is_production else "/docs",

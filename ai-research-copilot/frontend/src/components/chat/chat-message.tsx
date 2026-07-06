@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Bot, User } from "lucide-react";
+import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Brain, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -42,12 +42,12 @@ export const ChatMessage = React.memo(function ChatMessage({
         <AvatarFallback
           className={cn(
             role === "assistant"
-              ? "bg-primary text-primary-foreground"
+              ? "bg-gradient-to-br from-primary to-primary/70 text-primary-foreground"
               : "bg-muted"
           )}
         >
           {role === "assistant" ? (
-            <Bot className="h-4 w-4" />
+            <Brain className="h-4 w-4" />
           ) : (
             <User className="h-4 w-4" />
           )}
@@ -57,7 +57,7 @@ export const ChatMessage = React.memo(function ChatMessage({
       <div className="flex-1 space-y-2">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">
-            {role === "assistant" ? "AI Assistant" : "You"}
+            {role === "assistant" ? "ARC" : "You"}
           </span>
         </div>
 

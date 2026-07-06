@@ -184,7 +184,7 @@ class BaseAgent(ABC):
         Subclasses should override this method to supply a specialised prompt.
         The default returns a generic assistant prompt.
         """
-        return "You are a helpful AI assistant."
+        return "You are ARC, an AI Research Copilot. You are professional, intelligent, and helpful."
 
     def _parse_json_response(self, response: LLMResponse) -> dict[str, Any]:
         """Best-effort extraction of a JSON object from LLM output.

@@ -8,7 +8,7 @@ import {
   MessageSquare,
   FileText,
   BookOpen,
-  Bot,
+  Brain,
   Clock,
   ArrowUpRight,
 } from "lucide-react";
@@ -71,7 +71,7 @@ export default function AnalyticsPage() {
     {
       title: "Active Agents",
       value: summary?.active_agents ?? 0,
-      icon: Bot,
+      icon: Brain,
     },
   ];
 

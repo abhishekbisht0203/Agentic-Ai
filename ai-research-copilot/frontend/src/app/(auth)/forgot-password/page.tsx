@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Bot, Loader2, ArrowLeft } from "lucide-react";
+import { Brain, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
         <div className="text-center">
           <div className="flex items-center justify-center gap-2 mb-6">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Bot className="h-5 w-5" />
+              <Brain className="h-5 w-5" />
             </div>
           </div>
           <h2 className="text-2xl font-bold">Reset your password</h2>

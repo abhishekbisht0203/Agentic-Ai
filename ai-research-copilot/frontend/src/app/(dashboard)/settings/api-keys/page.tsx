@@ -122,7 +122,7 @@ export default function ApiKeysPage() {
             Your API Keys
           </CardTitle>
           <CardDescription>
-            Use API keys to authenticate requests to the AI Research Copilot API
+            Use API keys to authenticate requests to the ARC API
           </CardDescription>
         </CardHeader>
         <CardContent>

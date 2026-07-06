@@ -5,7 +5,7 @@ import {
   MessageSquare,
   FileText,
   Database,
-  Bot,
+  Brain,
   HardDrive,
   Infinity,
 } from "lucide-react";
@@ -24,7 +24,7 @@ const METRIC_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   ai_messages: MessageSquare,
   documents: FileText,
   knowledge_bases: Database,
-  agents: Bot,
+  agents: Brain,
   storage_bytes: HardDrive,
 };
 

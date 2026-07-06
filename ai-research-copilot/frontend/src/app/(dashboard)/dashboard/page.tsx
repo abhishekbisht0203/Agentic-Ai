@@ -7,7 +7,7 @@ import {
   MessageSquare,
   FileText,
   BookOpen,
-  Bot,
+  Brain,
   ArrowUpRight,
   ArrowRight,
   TrendingUp,
@@ -82,7 +82,7 @@ export default function DashboardPage() {
     {
       title: "Active Agents",
       value: summary?.active_agents ?? 0,
-      icon: Bot,
+      icon: Brain,
       href: "/agents",
     },
   ];
@@ -112,7 +112,7 @@ export default function DashboardPage() {
     {
       title: "Run Agent",
       description: "Execute an AI agent task",
-      icon: Bot,
+      icon: Brain,
       href: "/agents",
       color: "text-amber-500",
     },

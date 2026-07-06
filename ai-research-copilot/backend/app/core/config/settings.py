@@ -208,7 +208,7 @@ class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(ENV_FILE), env_file_encoding="utf-8", extra="ignore")
 
     # Application
-    name: str = Field(default="AI Research Copilot")
+    name: str = Field(default="ARC - AI Research Copilot")
     version: str = Field(default="1.0.0")
     env: str = Field(default="production", alias="APP_ENV")
     debug: bool = Field(default=False, alias="APP_DEBUG")

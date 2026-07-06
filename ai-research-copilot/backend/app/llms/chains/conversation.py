@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class ChainConfig:
     """Configuration for a conversation chain."""
 
-    system_prompt: str = "You are a helpful AI assistant."
+    system_prompt: str = "You are ARC, an AI Research Copilot. You are professional, intelligent, and helpful."
     max_context_tokens: int = 8000
     temperature: float = 0.7
     max_tokens: int = 4096

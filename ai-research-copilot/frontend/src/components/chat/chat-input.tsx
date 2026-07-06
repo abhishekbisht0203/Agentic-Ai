@@ -376,7 +376,7 @@ export function ChatInput({ onSend, isLoading = false, disabled = false, onStop,
                   ? "Listening..."
                   : recorder.isRecording
                   ? "Recording audio..."
-                  : "Ask anything..."
+                  : "Ask ARC anything..."
               }
               disabled={disabled}
               rows={1}

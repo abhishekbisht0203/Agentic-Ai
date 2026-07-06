@@ -211,7 +211,7 @@ export default function AgentsPage() {
               <Label htmlFor="system_prompt">System Prompt</Label>
               <Textarea
                 id="system_prompt"
-                placeholder="You are a helpful research assistant..."
+                placeholder="You are ARC, an AI Research Copilot..."
                 value={createSystemPrompt}
                 onChange={(e) => setCreateSystemPrompt(e.target.value)}
               />

@@ -10,7 +10,7 @@ export const stripe =
     apiVersion: "2025-02-24.acacia",
     typescript: true,
     appInfo: {
-      name: "AI Research Copilot",
+      name: "ARC - AI Research Copilot",
       version: "1.0.0",
       url: process.env.NEXT_PUBLIC_APP_URL,
     },

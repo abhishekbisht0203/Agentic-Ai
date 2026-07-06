@@ -27,7 +27,7 @@ class ChatMemory:
     Example::
 
         memory = ChatMemory(max_tokens=8000)
-        memory.add("system", "You are a helpful assistant.")
+        memory.add("system", "You are ARC, an AI Research Copilot.")
         memory.add("user", "Hello!")
         memory.add("assistant", "Hi there!")
         print(memory.get_token_count())  # ≈ tokens used

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Bot,
+  Brain,
   Play,
   Pause,
   MoreHorizontal,
@@ -99,7 +99,7 @@ export function AgentCard({
                 agentTypeColors[agent.agent_type] || agentTypeColors.custom
               }`}
             >
-              <Bot className="h-5 w-5" />
+              <Brain className="h-5 w-5" />
             </div>
             <div>
               <CardTitle className="text-lg">{agent.name}</CardTitle>

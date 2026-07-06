@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Bot, Loader2, Eye, EyeOff } from "lucide-react";
+import { Brain, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,12 +83,12 @@ export default function LoginPage() {
         <div className="max-w-md space-y-6">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Bot className="h-6 w-6" />
+              <Brain className="h-6 w-6" />
             </div>
-            <h1 className="text-2xl font-bold">AI Research Copilot</h1>
+            <h1 className="text-2xl font-bold">ARC - AI Research Copilot</h1>
           </div>
           <p className="text-lg text-muted-foreground">
-            Your enterprise AI research platform. Chat with AI, analyze
+            Your intelligent research platform. Chat with ARC, analyze
             documents, and automate research workflows.
           </p>
           <div className="space-y-4">

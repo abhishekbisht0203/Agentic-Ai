@@ -10,21 +10,21 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "AI Research Copilot",
-    template: "%s | AI Research Copilot",
+    default: "ARC - AI Research Copilot",
+    template: "%s | ARC - AI Research Copilot",
   },
   description:
-    "Enterprise Agentic AI Research Platform - Chat, Analyze, Research, Automate",
+    "ARC - AI Research Copilot. Intelligent research, analysis, and automation platform.",
   keywords: [
-    "AI",
+    "ARC",
+    "AI Research Copilot",
     "research",
-    "copilot",
     "LLM",
     "RAG",
     "knowledge base",
     "document analysis",
   ],
-  authors: [{ name: "AI Research Copilot" }],
+  authors: [{ name: "ARC - AI Research Copilot" }],
 };
 
 export default function RootLayout({

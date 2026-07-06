@@ -1,13 +1,13 @@
-export const APP_NAME = "AI Research Copilot";
-export const APP_DESCRIPTION = "Enterprise Agentic AI Research Platform";
+export const APP_NAME = "ARC";
+export const APP_DESCRIPTION = "AI Research Copilot - Intelligent Research Platform";
 
 export const NAV_ITEMS = {
   main: [
     { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
-    { label: "AI Chat", href: "/chat", icon: "MessageSquare" },
+    { label: "ARC Chat", href: "/chat", icon: "MessageSquare" },
     { label: "Knowledge Base", href: "/knowledge", icon: "BookOpen" },
     { label: "Documents", href: "/documents", icon: "FileText" },
-    { label: "Agents", href: "/agents", icon: "Bot" },
+    { label: "Agents", href: "/agents", icon: "Brain" },
     { label: "Workflows", href: "/workflows", icon: "GitBranch" },
   ],
   analytics: [
