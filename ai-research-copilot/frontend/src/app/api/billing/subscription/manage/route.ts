@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 
 async function getUserId(request: NextRequest): Promise<string | null> {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const activeSub = subs[0];
 
     if (action === "cancel") {
-      await stripe.subscriptions.update(
+      await getStripe().subscriptions.update(
         activeSub.stripeSubscriptionId,
         {
           cancel_at_period_end: true,
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await stripe.subscriptions.update(
+      await getStripe().subscriptions.update(
         activeSub.stripeSubscriptionId,
         {
           cancel_at_period_end: false,

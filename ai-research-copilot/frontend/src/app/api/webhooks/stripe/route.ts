@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
@@ -14,7 +14,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  const subscription = await stripe.subscriptions.retrieve(
+  const subscription = await getStripe().subscriptions.retrieve(
     session.subscription as string
   );
 
@@ -32,7 +32,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   });
 
   if (!planRecord) {
-    const product = await stripe.products.retrieve(stripeProductId);
+    const product = await getStripe().products.retrieve(stripeProductId);
     const slug =
       product.metadata?.slug ||
       product.name.toLowerCase().replace(/\s+/g, "-");
@@ -364,7 +364,7 @@ export async function POST(request: NextRequest) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = getStripe().webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
     console.error("Webhook signature verification failed:", err);
     return NextResponse.json(

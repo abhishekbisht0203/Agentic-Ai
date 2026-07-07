@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { detectCountryFromRequest, getCurrencyForCountry } from "@/lib/billing";
 
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (!user) {
-        const stripeCustomer = await stripe.customers.create({
+        const stripeCustomer = await getStripe().customers.create({
           metadata: { userId },
         });
 
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_STRIPE_CANCEL_URL ||
       `${process.env.NEXT_PUBLIC_APP_URL}/settings/billing?canceled=true`;
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       customer: customer.stripeCustomerId,
       mode: "subscription",
       payment_method_types: ["card"],
