@@ -54,3 +54,33 @@ services:
         sync: false
     healthCheckPath: /health
     autoDeploy: true
+
+  # MCP Server
+  - type: web
+    name: airc-mcp-server
+    plan: free
+    runtime: docker
+    dockerfilePath: ./docker/mcp/Dockerfile.render
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: MCP_PORT
+        value: 8100
+      - key: MCP_SECRET_KEY
+        generateValue: true
+      - key: MCP_RATE_LIMIT_ENABLED
+        value: "true"
+      - key: MCP_RATE_LIMIT_MAX_REQUESTS
+        value: "100"
+      - key: MCP_RATE_LIMIT_WINDOW_SECONDS
+        value: "60"
+      - key: MCP_TIMEOUT
+        value: "30"
+      - key: MCP_MAX_RETRIES
+        value: "3"
+      - key: MCP_LOG_FORMAT
+        value: json
+    healthCheckPath: /health
+    autoDeploy: true

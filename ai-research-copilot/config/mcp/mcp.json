@@ -1,0 +1,132 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schema/2024-11-05",
+  "name": "ai-research-copilot-mcp",
+  "version": "1.0.0",
+  "description": "MCP server configuration for AI Research Copilot deployment",
+  "protocolVersion": "2024-11-05",
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8100,
+    "transport": "http",
+    "cors": {
+      "enabled": true,
+      "origins": [
+        "http://localhost:3000",
+        "https://abryx-ai.vercel.app",
+        "https://*.vercel.app"
+      ]
+    },
+    "rateLimit": {
+      "enabled": true,
+      "maxRequests": 100,
+      "windowSeconds": 60
+    },
+    "healthCheck": {
+      "enabled": true,
+      "path": "/health"
+    }
+  },
+  "tools": {
+    "calculator": {
+      "enabled": true,
+      "category": "calculation",
+      "requiresAuth": false,
+      "timeout": 10
+    },
+    "web_search": {
+      "enabled": true,
+      "category": "search",
+      "requiresAuth": false,
+      "timeout": 30,
+      "config": {
+        "provider": "stub",
+        "maxResults": 10
+      }
+    },
+    "weather": {
+      "enabled": true,
+      "category": "data",
+      "requiresAuth": false,
+      "timeout": 15,
+      "config": {
+        "provider": "stub"
+      }
+    },
+    "read_file": {
+      "enabled": true,
+      "category": "filesystem",
+      "requiresAuth": true,
+      "timeout": 10,
+      "config": {
+        "allowedPaths": ["/app/uploads", "/tmp"],
+        "maxFileSizeMB": 10
+      }
+    },
+    "write_file": {
+      "enabled": true,
+      "category": "filesystem",
+      "requiresAuth": true,
+      "timeout": 10,
+      "config": {
+        "allowedPaths": ["/app/uploads", "/tmp"],
+        "maxFileSizeMB": 10
+      }
+    },
+    "python_executor": {
+      "enabled": true,
+      "category": "execution",
+      "requiresAuth": true,
+      "timeout": 30,
+      "config": {
+        "restrictedMode": true,
+        "maxExecutionTime": 25
+      }
+    }
+  },
+  "security": {
+    "authentication": {
+      "enabled": true,
+      "provider": "jwt",
+      "secretKeyEnv": "MCP_SECRET_KEY",
+      "tokenExpiry": 3600
+    },
+    "authorization": {
+      "enabled": true,
+      "roles": {
+        "admin": ["*"],
+        "user": ["calculator", "web_search", "weather"],
+        "authenticated": ["read_file", "write_file", "python_executor"]
+      }
+    },
+    "rateLimiting": {
+      "enabled": true,
+      "defaultLimit": 100,
+      "windowSeconds": 60,
+      "toolLimits": {
+        "python_executor": 10,
+        "web_search": 20
+      }
+    }
+  },
+  "monitoring": {
+    "metrics": {
+      "enabled": true,
+      "path": "/metrics"
+    },
+    "logging": {
+      "level": "info",
+      "format": "json",
+      "file": "/app/logs/mcp.log"
+    },
+    "tracing": {
+      "enabled": true,
+      "sampleRate": 0.1
+    }
+  },
+  "client": {
+    "timeout": 30,
+    "maxRetries": 3,
+    "retryDelay": 1000,
+    "connectTimeout": 10
+  }
+}

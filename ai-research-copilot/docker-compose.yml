@@ -195,6 +195,40 @@ services:
     depends_on:
       - backend
 
+  # MCP Server
+  mcp-server:
+    build:
+      context: .
+      dockerfile: docker/mcp/Dockerfile
+    container_name: airc-mcp-server
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8100
+      MCP_CONFIG_PATH: /app/config/mcp/mcp.json
+      MCP_SECRET_KEY: ${MCP_SECRET_KEY:-change-this-in-production}
+      MCP_RATE_LIMIT_ENABLED: ${MCP_RATE_LIMIT_ENABLED:-true}
+      MCP_RATE_LIMIT_MAX_REQUESTS: ${MCP_RATE_LIMIT_MAX_REQUESTS:-100}
+      MCP_RATE_LIMIT_WINDOW_SECONDS: ${MCP_RATE_LIMIT_WINDOW_SECONDS:-60}
+    volumes:
+      - ./config/mcp:/app/config/mcp:ro
+      - mcp_logs:/app/logs
+      - uploads_data:/app/uploads
+    ports:
+      - "${MCP_PORT:-8100}:8100"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - airc-network
+    depends_on:
+      - backend
+
   # Prometheus
   prometheus:
     image: prom/prometheus:v2.55.0
@@ -238,6 +272,7 @@ volumes:
   nginx_logs:
   prometheus_data:
   grafana_data:
+  mcp_logs:
 
 networks:
   airc-network:
