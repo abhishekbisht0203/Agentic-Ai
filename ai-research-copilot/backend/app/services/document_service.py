@@ -154,7 +154,7 @@ class DocumentService:
             logger.exception("Storage upload failed for file %s", filename)
             raise DocumentProcessingError(
                 message="Failed to upload file to storage",
-                details={"filename": filename, "error": str(exc)},
+                details={"upload_filename": filename, "error": str(exc)},
             ) from exc
 
         # Read file bytes for text extraction

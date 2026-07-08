@@ -210,7 +210,8 @@ def register_exception_handlers(app: FastAPI, is_production: bool = False) -> No
     @app.exception_handler(AIRCError)
     async def airc_error_handler(request: Request, exc: AIRCError) -> JSONResponse:
         """Handle custom AIRC errors with CORS headers."""
-        logger.error("AIRC Error: %s - %s", exc.code, exc.message, extra=exc.details)
+        safe_details = {f"ctx_{k}": v for k, v in exc.details.items()} if exc.details else {}
+        logger.error("AIRC Error: %s - %s", exc.code, exc.message, extra=safe_details)
         headers = _get_cors_headers(request.headers.get("origin"))
         return JSONResponse(
             status_code=400,
