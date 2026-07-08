@@ -94,6 +94,16 @@ class MinIOSettings(BaseSettings):
     secure: bool = Field(default=False, alias="MINIO_SECURE")
 
 
+class SupabaseSettings(BaseSettings):
+    """Supabase storage configuration settings."""
+
+    model_config = SettingsConfigDict(env_prefix="SUPABASE_", extra="ignore")
+
+    url: str = Field(default="", alias="SUPABASE_URL")
+    key: str = Field(default="", alias="SUPABASE_KEY")
+    storage_bucket: str = Field(default="documents", alias="SUPABASE_STORAGE_BUCKET")
+
+
 class JWTSettings(BaseSettings):
     """JWT authentication configuration settings."""
 
@@ -248,6 +258,10 @@ class AppSettings(BaseSettings):
     rate_limit_requests: int = Field(default=100, alias="RATE_LIMIT_REQUESTS")
     rate_limit_period: int = Field(default=60, alias="RATE_LIMIT_PERIOD_SECONDS")
 
+    # Storage
+    storage_backend: str = Field(default="local", alias="STORAGE_BACKEND")
+    local_storage_path: str = Field(default="./uploads", alias="LOCAL_STORAGE_PATH")
+
     # Feature Flags
     enable_mcp: bool = Field(default=True, alias="ENABLE_MCP")
     enable_rag: bool = Field(default=True, alias="ENABLE_RAG")
@@ -259,6 +273,7 @@ class AppSettings(BaseSettings):
     redis: RedisSettings = Field(default_factory=RedisSettings)
     qdrant: QdrantSettings = Field(default_factory=QdrantSettings)
     minio: MinIOSettings = Field(default_factory=MinIOSettings)
+    supabase: SupabaseSettings = Field(default_factory=SupabaseSettings)
     jwt: JWTSettings = Field(default_factory=JWTSettings)
     oauth: OAuthSettings = Field(default_factory=OAuthSettings)
     llm: LLMProviderSettings = Field(default_factory=LLMProviderSettings)

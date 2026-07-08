@@ -37,6 +37,14 @@ services:
         value: 2
       - key: ENCRYPTION_KEY
         generateValue: true
+      - key: STORAGE_BACKEND
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: documents
       # OAuth redirect URLs (CRITICAL for production OAuth)
       - key: FRONTEND_URL
         value: "https://abryx-ai.vercel.app"

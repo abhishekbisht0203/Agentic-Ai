@@ -25,7 +25,7 @@ from app.schemas.document import (
     DocumentUpdate,
     DocumentUploadResponse,
 )
-from app.storage import LocalStorage, S3Storage
+from app.storage import LocalStorage, S3Storage, SupabaseStorage
 
 logger = logging.getLogger(__name__)
 
@@ -113,14 +113,40 @@ class DocumentService:
         self.storage = self._build_storage()
 
     @staticmethod
-    def _build_storage() -> S3Storage | LocalStorage:
-        """Select storage backend from application settings."""
-        backend = getattr(settings, "storage_backend", "s3")
-        if backend == "local" or S3Storage is None:
-            return LocalStorage(
-                base_path=getattr(settings, "local_storage_path", "./uploads")
-            )
-        return S3Storage()
+    def _build_storage():
+        """Select storage backend from application settings.
+
+        Supported backends: "supabase", "s3", "local".
+        Falls back to local storage if the selected backend is unavailable.
+        """
+        backend = settings.storage_backend
+
+        if backend == "supabase":
+            if SupabaseStorage is None:
+                logger.warning("SupabaseStorage not available, falling back to local")
+                return LocalStorage(base_path=settings.local_storage_path)
+            if not settings.supabase.url or not settings.supabase.key:
+                logger.warning("Supabase credentials not configured, falling back to local")
+                return LocalStorage(base_path=settings.local_storage_path)
+            logger.info("Using Supabase storage backend (bucket=%s)", settings.supabase.storage_bucket)
+            return SupabaseStorage()
+
+        if backend == "s3":
+            if S3Storage is None:
+                logger.warning("S3Storage not available, falling back to local")
+                return LocalStorage(base_path=settings.local_storage_path)
+            endpoint = settings.minio.endpoint
+            if "localhost" in endpoint or "127.0.0.1" in endpoint:
+                logger.warning(
+                    "S3 endpoint '%s' is a loopback address, falling back to local",
+                    endpoint,
+                )
+                return LocalStorage(base_path=settings.local_storage_path)
+            logger.info("Using S3/MinIO storage backend at %s", endpoint)
+            return S3Storage()
+
+        logger.info("Using local filesystem storage backend")
+        return LocalStorage(base_path=settings.local_storage_path)
 
     async def upload_document(
         self,
