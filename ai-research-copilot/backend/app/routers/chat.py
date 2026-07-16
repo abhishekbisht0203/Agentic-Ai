@@ -479,6 +479,32 @@ async def send_chat_stream(
     for msg in history[:-1]:
         chain.get_memory(str(conv_id)).add(msg["role"], msg["content"])
 
+    # Check cache for identical query
+    cache_key = f"chat:{str(current_user.id)}:{hash(data.message)}"
+    cached_response = None
+    try:
+        from app.cache.redis.cache import RedisCache
+        cache = RedisCache()
+        cached = await cache.get(cache_key)
+        if cached:
+            cached_response = cached
+    except Exception:
+        pass
+
+    if cached_response:
+        async def cached_gen():
+            yield f"data: {json.dumps({'content': cached_response, 'done': False})}\n\n"
+            yield f"data: {json.dumps({'content': '', 'done': True, 'conversation_id': str(conv_id), 'cached': True})}\n\n"
+        return StreamingResponse(
+            cached_gen(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     # Capture values for the generator closure. The generator must NOT
     # reference chat_service or any request-scoped object after this point.
     _conv_id = conv_id
@@ -512,6 +538,13 @@ async def send_chat_stream(
                         user_id=_user_id,
                         data=MessageCreate(content=assistant_content, role="assistant"),
                     )
+                # Cache the response for reuse
+                try:
+                    from app.cache.redis.cache import RedisCache
+                    cache = RedisCache()
+                    await cache.set(cache_key, assistant_content, ttl=3600)
+                except Exception:
+                    pass
                 yield f"data: {json.dumps({'content': '', 'done': True, 'conversation_id': str(_conv_id)})}\n\n"
             except Exception as e:
                 logger.error("Failed to persist assistant message: %s", e)

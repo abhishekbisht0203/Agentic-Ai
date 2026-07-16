@@ -16,6 +16,8 @@ from app.models.user import User
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     RefreshTokenRequest,
     RegisterRequest,
     TokenResponse,
@@ -103,6 +105,29 @@ async def get_current_user(
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         "updated_at": current_user.updated_at.isoformat() if current_user.updated_at else None,
     }
+
+
+# ==================== Password Reset Endpoints ====================
+
+
+@router.post("/forgot-password", status_code=200)
+async def forgot_password(
+    data: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Request a password reset email."""
+    service = AuthService(db)
+    return await service.forgot_password(data)
+
+
+@router.post("/reset-password", status_code=200)
+async def reset_password(
+    data: PasswordResetConfirm,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Reset a password using a reset token."""
+    service = AuthService(db)
+    return await service.reset_password(data)
 
 
 # ==================== OAuth Endpoints ====================

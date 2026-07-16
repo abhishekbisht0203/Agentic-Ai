@@ -18,6 +18,7 @@ from .agents import router as agents_router
 from .analytics import router as analytics_router
 from .admin import router as admin_router
 from .settings import router as settings_router
+from .public_stats import router as public_stats_router
 
 api_router = APIRouter()
 
@@ -33,5 +34,6 @@ api_router.include_router(agents_router)
 api_router.include_router(analytics_router)
 api_router.include_router(admin_router)
 api_router.include_router(settings_router)
+api_router.include_router(public_stats_router)
 
 __all__ = ["api_router"]

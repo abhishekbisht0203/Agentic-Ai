@@ -6,6 +6,7 @@ available agents, routes user requests through the supervisor, and
 orchestrates multi-agent workflows when a single agent is insufficient.
 """
 
+import asyncio
 import json
 import uuid
 import time
@@ -152,28 +153,40 @@ class AIOrchestrator:
             conversation_id,
         )
 
-        # Check if secondary agents are needed (from task plan)
+        # Run secondary agents in parallel for speed (Phase 3 optimization)
         secondary_results: list[dict[str, Any]] = []
         tasks = classification.get("tasks", [])
+        parallel_tasks = []
         for task in tasks:
             if task.get("status") == "pending" and task.get("agent_type") != primary_type:
                 dep_ids = task.get("depends_on", [])
-                # Only run if primary deps are satisfied
                 if dep_ids:
-                    sec_result = await self.execute_agent(
-                        task["agent_type"],
-                        {
-                            "message": message,
-                            "user_id": str(user_id),
-                            "context": primary_result.get("summary", primary_result.get("explanation", "")),
-                        },
-                        conversation_id,
+                    parallel_tasks.append(
+                        self.execute_agent(
+                            task["agent_type"],
+                            {
+                                "message": message,
+                                "user_id": str(user_id),
+                                "context": primary_result.get("summary", primary_result.get("explanation", "")),
+                            },
+                            conversation_id,
+                        )
                     )
-                    secondary_results.append({
-                        "agent_type": task["agent_type"],
-                        "task_id": task.get("task_id"),
-                        "result": sec_result,
-                    })
+
+        if parallel_tasks:
+            sec_results = await asyncio.gather(*parallel_tasks, return_exceptions=True)
+            for task, sec_result in zip(
+                [t for t in tasks if t.get("status") == "pending" and t.get("agent_type") != primary_type and t.get("depends_on")],
+                sec_results,
+            ):
+                if isinstance(sec_result, Exception):
+                    logger.error("Secondary agent %s failed: %s", task["agent_type"], sec_result)
+                    continue
+                secondary_results.append({
+                    "agent_type": task["agent_type"],
+                    "task_id": task.get("task_id"),
+                    "result": sec_result,
+                })
 
         elapsed = int((time.monotonic() - start) * 1000)
         return {

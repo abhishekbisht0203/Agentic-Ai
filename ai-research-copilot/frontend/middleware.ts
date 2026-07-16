@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const protectedRoutes = ["/dashboard", "/chat", "/documents", "/knowledge", "/agents", "/workflows", "/analytics", "/settings", "/admin", "/reports", "/docs"];
-const authRoutes = ["/login", "/register", "/forgot-password"];
+const protectedRoutes = ["/dashboard", "/chat", "/documents", "/knowledge", "/agents", "/workflows", "/analytics", "/settings", "/admin", "/reports"];
+const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
 const oauthCallbackRoutes = ["/auth/callback"];
 
 export function middleware(request: NextRequest) {
@@ -30,8 +30,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow public pricing page
-  if (pathname.startsWith("/pricing")) {
+  // Allow public pricing and docs pages
+  if (pathname.startsWith("/pricing") || pathname.startsWith("/docs") || pathname.startsWith("/demo") || pathname.startsWith("/reset-password")) {
     return NextResponse.next();
   }
 

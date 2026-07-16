@@ -19,6 +19,8 @@ from app.repositories.user import UserRepository
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     RefreshTokenRequest,
     RegisterRequest,
     TokenResponse,
@@ -197,3 +199,40 @@ class AuthService:
             token_type="bearer",
             expires_in=settings.jwt.expiration_hours * 3600,
         )
+
+    async def forgot_password(self, data: PasswordResetRequest) -> dict:
+        """Send a password reset email.
+
+        Always returns success to prevent email enumeration.
+        In production, this would send an email via SendGrid/Resend/etc.
+        """
+        user = await self.user_repo.get_by_email(data.email)
+        if user:
+            reset_token = create_access_token(
+                subject=str(user.id),
+                scopes=["password_reset"],
+                expires_delta=timedelta(hours=1),
+            )
+            logger.info(
+                "Password reset requested for %s (token: %s...)",
+                data.email,
+                reset_token[:20],
+            )
+        else:
+            logger.info("Password reset requested for unknown email %s", data.email)
+        return {"message": "If that email is registered, a reset link has been sent."}
+
+    async def reset_password(self, data: PasswordResetConfirm) -> dict:
+        """Reset a user's password using a valid reset token."""
+        payload = verify_token(data.token)
+        if "password_reset" not in payload.scopes:
+            raise AuthenticationError(message="Invalid reset token")
+        user = await self.user_repo.get_by_id(uuid.UUID(payload.sub))
+        if not user or not user.is_active:
+            raise AuthenticationError(message="User not found or inactive")
+        await self.user_repo.update(
+            user.id,
+            hashed_password=hash_password(data.new_password),
+        )
+        logger.info("Password reset successful for user %s", user.id)
+        return {"message": "Password has been reset successfully."}

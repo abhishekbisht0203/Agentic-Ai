@@ -81,6 +81,16 @@ export const authApi = {
     await apiClient.post("/auth/change-password", data);
   },
 
+  forgotPassword: async (email: string): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>("/auth/forgot-password", { email });
+    return response.data;
+  },
+
+  resetPassword: async (token: string, newPassword: string): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>("/auth/reset-password", { token, new_password: newPassword });
+    return response.data;
+  },
+
   getOAuthUrl: (provider: OAuthProvider): string => {
     return `${API_BASE_URL}/auth/${provider}/login`;
   },

@@ -11,15 +11,10 @@ import {
   BarChart3,
   Database,
   Search,
-  ArrowRight,
-  ChevronRight,
   HelpCircle,
   Zap,
-  Shield,
-  Upload,
-  Settings,
   Code,
-  ExternalLink,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Card,
@@ -30,7 +25,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Accordion,
@@ -259,7 +253,7 @@ const faqs = [
   },
 ];
 
-export default function DocsPage() {
+export default function PublicDocsPage() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [activeSection, setActiveSection] = React.useState<string | null>(null);
 
@@ -280,141 +274,142 @@ export default function DocsPage() {
     );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Documentation</h1>
-        <p className="text-muted-foreground">
-          Learn how to use ARC
-        </p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-16 max-w-6xl">
+        <div className="mb-8">
+          <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            Back to Home
+          </Link>
+          <h1 className="text-4xl font-bold mb-2">Documentation</h1>
+          <p className="text-xl text-muted-foreground">
+            Learn how to use ARC — your AI Research Copilot
+          </p>
+        </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search documentation..."
-          className="pl-9"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
+        <div className="relative max-w-md mb-8">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search documentation..."
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
 
-      {/* Quick Links */}
-      <div className="grid gap-4 md:grid-cols-4">
-        {docSections.slice(0, 4).map((section) => (
-          <Card
-            key={section.id}
-            className="cursor-pointer hover:shadow-md transition-all"
-            onClick={() => {
-              setActiveSection(section.id);
-              document
-                .getElementById(section.id)
-                ?.scrollIntoView({ behavior: "smooth" });
-            }}
-          >
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
+        <div className="grid gap-4 md:grid-cols-4 mb-12">
+          {docSections.slice(0, 4).map((section) => (
+            <Card
+              key={section.id}
+              className="cursor-pointer hover:shadow-md transition-all"
+              onClick={() => {
+                setActiveSection(section.id);
+                document
+                  .getElementById(section.id)
+                  ?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <section.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{section.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {section.articles.length} articles
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="space-y-8">
+          {filteredSections.map((section) => (
+            <div key={section.id} id={section.id}>
+              <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                   <section.icon className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">{section.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {section.articles.length} articles
+                  <h2 className="text-xl font-semibold">{section.title}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {section.description}
                   </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
-      {/* Documentation Sections */}
-      <div className="space-y-8">
-        {filteredSections.map((section) => (
-          <div key={section.id} id={section.id}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <section.icon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">{section.title}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {section.description}
-                </p>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {section.articles.map((article, index) => (
+                  <Card key={index} className="hover:shadow-md transition-all">
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        {article.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        {article.content}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {section.articles.map((article, index) => (
-                <Card key={index} className="hover:shadow-md transition-all">
-                  <CardHeader>
-                    <CardTitle className="text-base">
-                      {article.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground line-clamp-3">
-                      {article.content}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <Separator className="my-8" />
-
-      {/* FAQ Section */}
-      <div id="faq">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <HelpCircle className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold">
-              Frequently Asked Questions
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Common questions and answers
-            </p>
-          </div>
+          ))}
         </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <Accordion type="single" collapsible className="w-full">
-              {faqs.map((faq, index) => (
-                <AccordionItem key={index} value={`faq-${index}`}>
-                  <AccordionTrigger className="text-left">
-                    {faq.question}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    {faq.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </CardContent>
-        </Card>
-      </div>
+        <Separator className="my-8" />
 
-      {/* Contact Support */}
-      <Card>
-        <CardContent className="pt-6 text-center">
-          <h3 className="font-semibold mb-2">Still need help?</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Can&apos;t find what you&apos;re looking for? Our support team is
-            here to help.
+        <div id="faq">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <HelpCircle className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Common questions and answers
+              </p>
+            </div>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6">
+              <Accordion type="single" collapsible className="w-full">
+                {faqs.map((faq, index) => (
+                  <AccordionItem key={index} value={`faq-${index}`}>
+                    <AccordionTrigger className="text-left">
+                      {faq.question}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground">
+                      {faq.answer}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Separator className="my-8" />
+
+        <div className="text-center py-8">
+          <h3 className="font-semibold mb-2">Ready to get started?</h3>
+          <p className="text-muted-foreground mb-4">
+            Create your free account and start using ARC today.
           </p>
-          <Button variant="outline">
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Contact Support
+          <Button size="lg" asChild>
+            <Link href="/register">
+              Start Free Trial
+            </Link>
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
