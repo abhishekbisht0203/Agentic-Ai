@@ -166,31 +166,33 @@ function StarRating({ rating }: { rating: number }) {
 
 export default function LandingPage() {
   const [liveStats, setLiveStats] = React.useState<Record<string, number> | null>(null);
+  const [statsLoading, setStatsLoading] = React.useState(true);
 
   React.useEffect(() => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
     fetch(`${apiBase}/stats/public`)
       .then((r) => r.json())
       .then((data) => setLiveStats(data))
-      .catch(() => setLiveStats(null));
+      .catch(() => setLiveStats(null))
+      .finally(() => setStatsLoading(false));
   }, []);
 
   const stats = [
     {
       label: "Documents Processed",
-      value: liveStats ? formatStat(liveStats.documents) : "10K+",
+      value: liveStats ? formatStat(liveStats.documents) : null,
     },
     {
       label: "Queries Answered",
-      value: liveStats ? formatStat(liveStats.queries) : "100K+",
+      value: liveStats ? formatStat(liveStats.queries) : null,
     },
     {
       label: "Uptime",
-      value: liveStats ? `${liveStats.uptime}%` : "99.9%",
+      value: liveStats ? `${liveStats.uptime}%` : null,
     },
     {
       label: "Enterprise Users",
-      value: liveStats ? formatStat(liveStats.users) : "500+",
+      value: liveStats ? formatStat(liveStats.users) : null,
     },
   ];
 
@@ -290,14 +292,21 @@ export default function LandingPage() {
         <section className="border-t py-16">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {stats.map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
+              {statsLoading
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="text-center">
+                      <div className="text-3xl font-bold tracking-tight">—</div>
+                      <div className="text-sm text-muted-foreground mt-1">Loading...</div>
+                    </div>
+                  ))
+                : stats.map((stat) => (
+                    <div key={stat.label} className="text-center">
+                      <div className="text-3xl font-bold tracking-tight">{stat.value || "—"}</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {stat.label}
+                      </div>
+                    </div>
+                  ))}
             </div>
           </div>
         </section>

@@ -190,8 +190,8 @@ export default function DocumentsPage() {
                         </TableCell>
                         <TableCell>{formatBytes(doc.file_size)}</TableCell>
                         <TableCell>
-                          <Badge variant={status.variant}>
-                            {status.label}
+                          <Badge variant={statusConfig[doc.status as keyof typeof statusConfig]?.variant ?? "secondary"}>
+                            {statusConfig[doc.status as keyof typeof statusConfig]?.label ?? doc.status}
                           </Badge>
                         </TableCell>
                         <TableCell>{doc.chunk_count}</TableCell>

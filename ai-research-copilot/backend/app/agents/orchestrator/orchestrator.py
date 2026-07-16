@@ -23,6 +23,7 @@ from app.agents.code_assistant.code_assistant_agent import CodeAssistantAgent
 from app.agents.automation.automation_agent import AutomationAgent
 from app.agents.document_qa.document_qa_agent import DocumentQAAgent
 from app.agents.memory.memory_agent import MemoryAgent
+from app.agents.cli_agent.cli_agent import CLIAgent
 from app.llms.providers.base import BaseLLMProvider
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,7 @@ class AIOrchestrator:
             AutomationAgent,
             DocumentQAAgent,
             MemoryAgent,
+            CLIAgent,
         ):
             agent = agent_cls(llm)
             self.agents[agent.agent_type] = agent

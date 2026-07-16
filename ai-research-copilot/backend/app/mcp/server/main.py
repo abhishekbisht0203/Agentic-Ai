@@ -17,6 +17,7 @@ from starlette.responses import JSONResponse
 from app.mcp.registry.tool_registry import ToolRegistry
 from app.mcp.server.mcp_server import MCPServer
 from app.mcp.tools.builtin_tools import register_built_in_tools
+from app.mcp.tools.coding_tools import register_coding_tools
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,9 +39,10 @@ async def lifespan(app: FastAPI):
     logger.info("Starting MCP Server...")
     _start_time = time.time()
 
-    # Initialize tool registry and register built-in tools
+    # Initialize tool registry and register all tools
     _tool_registry = ToolRegistry()
     register_built_in_tools(_tool_registry)
+    register_coding_tools(_tool_registry)
 
     # Initialize MCP server
     _mcp_server = MCPServer(_tool_registry)

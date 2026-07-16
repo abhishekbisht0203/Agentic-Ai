@@ -19,6 +19,7 @@ SUPERVISOR_SYSTEM_PROMPT = (
     "- data_analyst: analysing datasets, generating statistics, visualisation suggestions\n"
     "- critic: evaluating content quality, identifying weaknesses, providing feedback\n"
     "- code_assistant: writing, reviewing, debugging, or explaining code\n"
+    "- cli_agent: executing terminal commands, running scripts, managing the CLI\n"
     "- automation: automating repetitive workflows or scheduling tasks\n"
     "- document_qa: answering questions about uploaded documents using RAG\n"
     "- memory: extracting and storing important facts from conversations\n"

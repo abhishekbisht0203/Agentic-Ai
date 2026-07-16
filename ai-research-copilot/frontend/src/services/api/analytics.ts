@@ -93,4 +93,55 @@ export const analyticsApi = {
     );
     return response.data;
   },
+
+  getTokenUsage: async (days = 30): Promise<{ summary: { total_requests: number; total_tokens: number; total_cost: number; avg_duration_ms: number; prompt_tokens: number; completion_tokens: number }; trend: Array<{ date: string; prompt_tokens: number; completion_tokens: number; requests: number }> }> => {
+    const response = await apiClient.get("/analytics/usage/tokens", { params: { days } });
+    return response.data;
+  },
+
+  getCostAnalytics: async (): Promise<{ breakdown: Array<{ provider: string; model: string; cost: number; requests: number; tokens: number }>; total_cost: number }> => {
+    const response = await apiClient.get("/analytics/usage/costs");
+    return response.data;
+  },
+
+  getModelPerformance: async (): Promise<{ models: Array<{ provider: string; model: string; requests: number; avg_duration_ms: number; total_tokens: number; cost: number }> }> => {
+    const response = await apiClient.get("/analytics/usage/models");
+    return response.data;
+  },
+
+  getErrorAnalytics: async (): Promise<{ total: number; failed: number; error_rate: number }> => {
+    const response = await apiClient.get("/analytics/usage/errors");
+    return response.data;
+  },
+
+  getDashboardUsage: async (): Promise<{
+    total_requests: number;
+    today_requests: number;
+    weekly_requests: number;
+    monthly_requests: number;
+    total_tokens: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_cost: number;
+    today_cost: number;
+    weekly_cost: number;
+    monthly_cost: number;
+    failed_requests: number;
+    streaming_requests: number;
+    cached_requests: number;
+    avg_duration_ms: number;
+    avg_cost_per_conversation: number;
+  }> => {
+    const response = await apiClient.get("/analytics/usage/dashboard");
+    return response.data;
+  },
+
+  getStorageUsage: async (): Promise<{
+    total_storage_bytes: number;
+    total_documents: number;
+    uploaded_today: number;
+  }> => {
+    const response = await apiClient.get("/analytics/usage/storage");
+    return response.data;
+  },
 };

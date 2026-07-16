@@ -81,6 +81,61 @@
         "restrictedMode": true,
         "maxExecutionTime": 25
       }
+    },
+    "edit_file": {
+      "enabled": true,
+      "category": "coding",
+      "requiresAuth": true,
+      "timeout": 10,
+      "config": {
+        "maxFileSizeMB": 50
+      }
+    },
+    "edit_file_replace_all": {
+      "enabled": true,
+      "category": "coding",
+      "requiresAuth": true,
+      "timeout": 10
+    },
+    "read_file_range": {
+      "enabled": true,
+      "category": "coding",
+      "requiresAuth": true,
+      "timeout": 10
+    },
+    "execute_command": {
+      "enabled": true,
+      "category": "coding",
+      "requiresAuth": true,
+      "timeout": 120,
+      "config": {
+        "maxCommandLength": 5000,
+        "allowedPrefixes": ["npm", "npx", "node", "python", "git", "dir", "ls", "cd", "cat", "type", "echo"]
+      }
+    },
+    "glob_search": {
+      "enabled": true,
+      "category": "coding",
+      "requiresAuth": true,
+      "timeout": 15
+    },
+    "grep_search": {
+      "enabled": true,
+      "category": "coding",
+      "requiresAuth": true,
+      "timeout": 15
+    },
+    "git_operations": {
+      "enabled": true,
+      "category": "coding",
+      "requiresAuth": true,
+      "timeout": 30
+    },
+    "list_directory": {
+      "enabled": true,
+      "category": "coding",
+      "requiresAuth": true,
+      "timeout": 10
     }
   },
   "security": {
@@ -95,7 +150,7 @@
       "roles": {
         "admin": ["*"],
         "user": ["calculator", "web_search", "weather"],
-        "authenticated": ["read_file", "write_file", "python_executor"]
+        "authenticated": ["read_file", "write_file", "python_executor", "edit_file", "edit_file_replace_all", "read_file_range", "execute_command", "glob_search", "grep_search", "git_operations", "list_directory"]
       }
     },
     "rateLimiting": {

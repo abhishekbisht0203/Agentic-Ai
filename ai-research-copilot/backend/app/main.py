@@ -77,6 +77,17 @@ async def lifespan(app: FastAPI) -> Any:
     except Exception as exc:
         logger.warning("Redis init failed (non-fatal): %s", exc)
 
+    try:
+        from app.mcp.registry.tool_registry import ToolRegistry
+        from app.mcp.tools.builtin_tools import register_built_in_tools
+        from app.mcp.tools.coding_tools import register_coding_tools
+        registry = ToolRegistry()
+        register_built_in_tools(registry)
+        register_coding_tools(registry)
+        logger.info("MCP tools initialized: %d registered", registry.count())
+    except Exception as exc:
+        logger.warning("MCP tool init failed (non-fatal): %s", exc)
+
     logger.info("Application startup complete")
 
     yield

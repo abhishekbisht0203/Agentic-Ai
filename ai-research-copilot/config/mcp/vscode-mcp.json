@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vscode-json-schemas/main/schemas/json/configuration.json",
+  "name": "ARC - AI Research Copilot",
+  "description": "MCP server configuration for VS Code integration",
+  "servers": {
+    "arc-coding-agent": {
+      "type": "http",
+      "url": "http://localhost:8100",
+      "timeout": 120,
+      "capabilities": {
+        "tools": {
+          "listChanged": false
+        }
+      },
+      "tools": [
+        "read_file",
+        "read_file_range",
+        "write_file",
+        "edit_file",
+        "edit_file_replace_all",
+        "execute_command",
+        "glob_search",
+        "grep_search",
+        "git_operations",
+        "list_directory",
+        "calculator"
+      ]
+    }
+  }
+}

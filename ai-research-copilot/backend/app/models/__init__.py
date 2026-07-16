@@ -48,6 +48,19 @@ from app.models.analytics import (
     ChartType,
     ActivityType,
 )
+from app.models.llm_usage import (
+    LLMRequest,
+    LLMProvider,
+    LLMRequestStatus,
+)
+from app.models.agent import (
+    Agent,
+    AgentRun,
+    AgentMemory,
+    AgentTool,
+    AgentStatus,
+    AgentVisibility,
+)
 
 __all__ = [
     # User models
@@ -89,4 +102,13 @@ __all__ = [
     "DataSourceType",
     "ChartType",
     "ActivityType",
+    "LLMRequest",
+    "LLMProvider",
+    "LLMRequestStatus",
+    "Agent",
+    "AgentRun",
+    "AgentMemory",
+    "AgentTool",
+    "AgentStatus",
+    "AgentVisibility",
 ]

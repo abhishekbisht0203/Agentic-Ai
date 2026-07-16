@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "arc-coding-agent": {
+      "type": "http",
+      "url": "http://localhost:8100",
+      "timeout": 120,
+      "capabilities": {
+        "tools": {
+          "listChanged": false
+        }
+      }
+    }
+  }
+}

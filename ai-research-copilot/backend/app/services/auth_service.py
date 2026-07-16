@@ -1,9 +1,12 @@
 """Authentication service handling login, registration, tokens, and OAuth."""
 
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import settings
 from app.core.exceptions import AuthenticationError, ValidationError

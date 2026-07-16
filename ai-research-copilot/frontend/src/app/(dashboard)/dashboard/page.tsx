@@ -15,7 +15,8 @@ import {
   Zap,
   Upload,
   GitBranch,
-  Loader2,
+  DollarSign,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Card,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthStore } from "@/store/auth-store";
 import { analyticsApi } from "@/services/api/analytics";
@@ -36,27 +38,37 @@ import { formatRelativeTime, formatBytes } from "@/utils/helpers";
 export default function DashboardPage() {
   const { user } = useAuthStore();
 
-  const { data: summary, isLoading: isLoadingSummary } = useQuery({
+  const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useQuery({
     queryKey: ["analytics-summary"],
     queryFn: analyticsApi.getSummary,
   });
 
-  const { data: conversations, isLoading: isLoadingConversations } = useQuery({
+  const { data: usage, isLoading: isLoadingUsage, error: usageError } = useQuery({
+    queryKey: ["dashboard-usage"],
+    queryFn: analyticsApi.getDashboardUsage,
+  });
+
+  const { data: storage, isLoading: isLoadingStorage } = useQuery({
+    queryKey: ["dashboard-storage"],
+    queryFn: analyticsApi.getStorageUsage,
+  });
+
+  const { data: conversations, isLoading: isLoadingConversations, error: convError } = useQuery({
     queryKey: ["conversations", { page: 1, page_size: 5 }],
     queryFn: () => chatApi.listConversations(1, 5),
   });
 
-  const { data: documents, isLoading: isLoadingDocuments } = useQuery({
+  const { data: documents, isLoading: isLoadingDocuments, error: docError } = useQuery({
     queryKey: ["documents", { page: 1, page_size: 5 }],
     queryFn: () => documentsApi.listDocuments(1, 5),
   });
 
-  const { data: activity } = useQuery({
+  const { data: activity, error: activityError } = useQuery({
     queryKey: ["user-activity"],
     queryFn: () => analyticsApi.getUserActivity(1, 10),
   });
 
-  const stats = [
+  const topStats = [
     {
       title: "Total Conversations",
       value: summary?.total_conversations ?? 0,
@@ -84,6 +96,51 @@ export default function DashboardPage() {
       value: summary?.active_agents ?? 0,
       icon: Brain,
       href: "/agents",
+    },
+  ];
+
+  const usageStats = [
+    {
+      title: "Today's Requests",
+      value: usage?.today_requests ?? 0,
+      icon: MessageSquare,
+      color: "text-blue-500",
+      formatter: (v: number) => v.toLocaleString(),
+    },
+    {
+      title: "Tokens Used",
+      value: usage?.total_tokens ?? 0,
+      icon: Zap,
+      color: "text-amber-500",
+      formatter: (v: number) => v.toLocaleString(),
+    },
+    {
+      title: "API Cost (Total)",
+      value: usage?.total_cost ?? 0,
+      icon: DollarSign,
+      color: "text-emerald-500",
+      formatter: (v: number) => `$${v.toFixed(4)}`,
+    },
+    {
+      title: "Avg Duration",
+      value: usage?.avg_duration_ms ?? 0,
+      icon: Clock,
+      color: "text-violet-500",
+      formatter: (v: number) => `${v.toFixed(0)}ms`,
+    },
+    {
+      title: "Failed Requests",
+      value: usage?.failed_requests ?? 0,
+      icon: AlertTriangle,
+      color: "text-red-500",
+      formatter: (v: number) => v.toLocaleString(),
+    },
+    {
+      title: "Storage Used",
+      value: storage?.total_storage_bytes ?? 0,
+      icon: FileText,
+      color: "text-emerald-500",
+      formatter: (v: number) => formatBytes(v),
     },
   ];
 
@@ -137,6 +194,15 @@ export default function DashboardPage() {
         </Button>
       </div>
 
+      {(summaryError || usageError || convError || docError || activityError) && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Some data failed to load. Please try refreshing the page.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {isLoadingSummary
           ? Array.from({ length: 4 }).map((_, i) => (
@@ -151,7 +217,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             ))
-          : stats.map((stat) => (
+          : topStats.map((stat) => (
               <Link key={stat.title} href={stat.href}>
                 <Card className="hover:shadow-md transition-all cursor-pointer">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -174,6 +240,36 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
               </Link>
+            ))}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+        {isLoadingUsage || isLoadingStorage
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-4" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-6 w-16" />
+                </CardContent>
+              </Card>
+            ))
+          : usageStats.map((stat) => (
+              <Card key={stat.title}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    {stat.title}
+                  </CardTitle>
+                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl font-bold">
+                    {stat.formatter(stat.value)}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
       </div>
 
@@ -220,7 +316,11 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingConversations ? (
+            {convError ? (
+              <p className="text-sm text-destructive text-center py-4">
+                Failed to load conversations.
+              </p>
+            ) : isLoadingConversations ? (
               <div className="space-y-4">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="flex items-start gap-3">
@@ -292,7 +392,11 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingDocuments ? (
+            {docError ? (
+              <p className="text-sm text-destructive text-center py-4">
+                Failed to load documents.
+              </p>
+            ) : isLoadingDocuments ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="flex items-center gap-3">
@@ -351,8 +455,8 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Platform Overview</CardTitle>
-                <CardDescription>System statistics</CardDescription>
+                <CardTitle>Usage & Billing</CardTitle>
+                <CardDescription>API usage and costs</CardDescription>
               </div>
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/analytics">
@@ -363,47 +467,82 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-blue-500" />
-                  <span className="text-sm">Total Messages</span>
-                </div>
-                <span className="text-sm font-medium">
-                  {(summary?.total_messages ?? 0).toLocaleString()}
-                </span>
+            {usageError ? (
+              <p className="text-sm text-destructive text-center py-4">
+                Failed to load usage data.
+              </p>
+            ) : isLoadingUsage ? (
+              <div className="space-y-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
               </div>
-              <div className="h-px bg-border" />
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-amber-500" />
-                  <span className="text-sm">Tokens Used</span>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm">Today</span>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {usage?.today_requests?.toLocaleString() ?? 0} requests / ${usage?.today_cost?.toFixed(4) ?? "0.0000"}
+                  </span>
                 </div>
-                <span className="text-sm font-medium">
-                  {(summary?.total_tokens_used ?? 0).toLocaleString()}
-                </span>
-              </div>
-              <div className="h-px bg-border" />
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <GitBranch className="h-4 w-4 text-violet-500" />
-                  <span className="text-sm">Active Workflows</span>
+                <div className="h-px bg-border" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm">This Week</span>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {usage?.weekly_requests?.toLocaleString() ?? 0} requests / ${usage?.weekly_cost?.toFixed(4) ?? "0.0000"}
+                  </span>
                 </div>
-                <span className="text-sm font-medium">
-                  {summary?.active_workflows ?? 0}
-                </span>
-              </div>
-              <div className="h-px bg-border" />
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-emerald-500" />
-                  <span className="text-sm">Storage Used</span>
+                <div className="h-px bg-border" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm">Total Tokens</span>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {(usage?.total_tokens ?? 0).toLocaleString()}
+                  </span>
                 </div>
-                <span className="text-sm font-medium">
-                  {formatBytes(summary?.total_storage_used_bytes ?? 0)}
-                </span>
+                <div className="h-px bg-border" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm">Total Cost</span>
+                  </div>
+                  <span className="text-sm font-medium">
+                    ${(usage?.total_cost ?? 0).toFixed(4)}
+                  </span>
+                </div>
+                <div className="h-px bg-border" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <GitBranch className="h-4 w-4 text-violet-500" />
+                    <span className="text-sm">Avg Duration</span>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {(usage?.avg_duration_ms ?? 0).toFixed(0)}ms
+                  </span>
+                </div>
+                <div className="h-px bg-border" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm">Storage</span>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {formatBytes(storage?.total_storage_bytes ?? 0)}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
